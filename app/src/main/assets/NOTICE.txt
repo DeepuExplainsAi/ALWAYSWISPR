@@ -1,0 +1,7 @@
+Wispr by Deepu Gupta
+Copyright (c) 2026 Deepu Gupta. All rights reserved.
+
+This application, including its source code, design, name, icons and text,
+is the property of Deepu Gupta. It is provided free to use as released by
+Deepu Gupta. Copying, modifying, re-branding, re-uploading or selling this
+app or any part of it without written permission from Deepu Gupta is prohibited.

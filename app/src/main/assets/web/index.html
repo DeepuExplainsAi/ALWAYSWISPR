@@ -1,0 +1,656 @@
+<!doctype html>
+<!--
+  Wispr by Deepu Gupta
+  Copyright (c) 2026 Deepu Gupta. All rights reserved.
+  Proprietary software. Unauthorised copying, modification, re-branding or redistribution is prohibited.
+-->
+<html lang="en" data-owner="Deepu Gupta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="author" content="Deepu Gupta">
+<meta name="copyright" content="Copyright (c) 2026 Deepu Gupta. All rights reserved.">
+<title>Wispr by Deepu Gupta</title>
+<style>
+:root{
+  --bg: #f6f6f0;
+  --surface: #fdfdfa;
+  --sunk: #eeede6;
+  --line: #dcdbd2;
+  --ink: #191911;
+  --ink-2: #53534a;
+  --ink-3: #6a6962;
+  --accent: #e14324;
+  --accent-press: #c52f0f;
+  --accent-soft: #ffe5de;
+  --accent-ink: #fff8f7;
+  --ok: #2e854d;
+  --ok-soft: #def6e3;
+  --err: #be2f2c;
+  --err-soft: #ffe7e4;
+
+  --space-2xs:4px; --space-xs:8px; --space-sm:12px; --space-md:16px; --space-lg:24px; --space-xl:32px; --space-2xl:48px;
+  --r-sm:10px; --r-md:14px; --r-lg:22px;
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-in: cubic-bezier(0.7,0,0.84,0);
+  --shadow-sm: 0 1px 2px rgba(47,46,35,.06), 0 1px 1px rgba(47,46,35,.04);
+  --shadow-lg: 0 18px 40px -18px rgba(59,40,36,.45);
+  --rec: var(--ink);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Noto Sans", "Noto Sans Devanagari", sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  font-family:var(--font); font-size:16px; line-height:1.5; color:var(--ink); background:var(--bg);
+  -webkit-font-smoothing:antialiased; font-optical-sizing:auto; -webkit-tap-highlight-color:transparent;
+}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.app{
+  max-width:560px; margin:0 auto; min-height:100vh; min-height:100dvh;
+  display:grid; grid-template-rows:auto auto 1fr auto; grid-template-columns:minmax(0,1fr);
+  padding: max(env(safe-area-inset-top),var(--space-md)) var(--space-lg) 0;
+}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;padding-block:var(--space-xs) var(--space-lg)}
+.brand{display:flex;align-items:baseline;gap:var(--space-xs)}
+.wordmark{font-size:1.75rem;font-weight:800;letter-spacing:-0.045em;line-height:1;display:flex;align-items:center;gap:6px}
+.wordmark .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;transform:translateY(-1px)}
+.byline{font-size:.8125rem;color:var(--ink-2);font-weight:500}
+.icon-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink-2);transition:background .2s var(--ease-out),color .2s}
+.icon-btn:hover{background:var(--sunk);color:var(--ink)}
+.icon-btn:active{transform:scale(.94)}
+
+/* controls */
+.controls{display:grid;gap:var(--space-sm);padding-bottom:var(--space-lg)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--sunk);border-radius:var(--r-md);padding:4px;position:relative}
+.seg button{position:relative;z-index:1;min-height:44px;border-radius:11px;font-weight:600;font-size:.9375rem;color:var(--ink-2);transition:color .25s var(--ease-out)}
+.seg button[aria-pressed="true"]{color:var(--ink)}
+.seg .thumb{position:absolute;z-index:0;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/3);background:var(--surface);border-radius:11px;box-shadow:var(--shadow-sm);transition:transform .35s var(--ease-out)}
+.langs{display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap}
+.pill{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 34px 0 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:.875rem;transition:border-color .2s}
+.pill:hover{border-color:var(--ink-3)}
+.pill span{color:var(--ink-3);font-weight:500}
+.pill select{appearance:none;-webkit-appearance:none;border:0;background:transparent;font-weight:600;padding:0;cursor:pointer;position:static}
+.pill select:focus-visible{outline:none}
+.pill:focus-within{outline:2.5px solid var(--accent);outline-offset:2px}
+.pill::after{content:"";position:absolute;right:14px;top:50%;width:6px;height:6px;border-right:1.5px solid var(--ink-2);border-bottom:1.5px solid var(--ink-2);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.arrow{color:var(--ink-3);font-weight:600}
+.hidden{display:none!important}
+
+/* editor */
+main{display:flex;flex-direction:column;min-height:0}
+.editor{
+  flex:1; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r-lg); overflow:hidden; min-height:220px;
+}
+.editor textarea{
+  flex:1; width:100%; resize:none; border:0; background:transparent; padding:var(--space-lg);
+  font-size:1.1875rem; line-height:1.6; letter-spacing:-0.005em; min-height:200px;
+}
+.editor textarea:focus{outline:none}
+.editor textarea::placeholder{color:var(--ink-3)}
+.editor:focus-within{border-color:var(--ink-3)}
+.bar{display:flex;align-items:center;gap:var(--space-2xs);padding:var(--space-xs) var(--space-xs) var(--space-xs) var(--space-md);border-top:1px solid var(--line)}
+.count{font-size:.8125rem;color:var(--ink-3);margin-right:auto;font-variant-numeric:tabular-nums}
+.tbtn{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border-radius:10px;font-size:.875rem;font-weight:600;color:var(--ink-2);transition:background .2s var(--ease-out),color .2s}
+.tbtn:hover{background:var(--sunk);color:var(--ink)}
+.tbtn:disabled{opacity:.4;pointer-events:none}
+.tbtn.done{color:var(--ok)}
+
+.recent{padding:var(--space-xl) 0 var(--space-md)}
+.recent-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--space-xs)}
+.eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.link{font-size:.8125rem;color:var(--ink-2);font-weight:600;min-height:32px}
+.link:hover{color:var(--ink)}
+.recent ol{list-style:none;padding:0}
+.recent li button{
+  width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:var(--space-sm);align-items:baseline;
+  padding:var(--space-sm) 0;border-bottom:1px solid var(--line);
+}
+.recent li:last-child button{border-bottom:0}
+.recent li p{font-size:.9375rem;color:var(--ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.recent li small{font-size:.75rem;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.recent li button:hover p{color:var(--accent-press)}
+.empty-note{font-size:.875rem;color:var(--ink-3);padding:var(--space-xs) 0}
+
+/* onboarding */
+.onboard{padding:var(--space-md) 0 var(--space-2xl)}
+.onboard h1{font-size:clamp(2.25rem,9vw,3rem);line-height:1.02;letter-spacing:-0.045em;font-weight:800;text-wrap:balance;margin-bottom:var(--space-md)}
+.onboard h1 em{font-style:normal;color:var(--accent)}
+.onboard .lead{font-size:1.125rem;color:var(--ink-2);max-width:40ch;margin-bottom:var(--space-xl)}
+.steps{list-style:none;padding:0;display:grid;gap:var(--space-lg);counter-reset:s}
+.steps li > div{min-width:0}
+.steps li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:var(--space-sm);counter-increment:s}
+.steps li::before{content:counter(s);width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:.8125rem;font-weight:700;display:grid;place-items:center;margin-top:1px}
+.steps h2{font-size:1rem;font-weight:700;margin-bottom:2px}
+.steps p{font-size:.9375rem;color:var(--ink-2)}
+.steps a{color:var(--accent-press);font-weight:600}
+.keyrow{display:flex;gap:var(--space-xs);margin-top:var(--space-sm)}
+.field{
+  flex:1;min-width:0;min-height:48px;padding:0 var(--space-md);border:1px solid var(--line);border-radius:var(--r-sm);
+  background:var(--surface);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.875rem;
+}
+.field:focus{outline:none;border-color:var(--ink-2)}
+.btn{min-height:48px;padding:0 var(--space-lg);border-radius:var(--r-sm);background:var(--ink);color:var(--bg);font-weight:700;transition:transform .15s var(--ease-out),opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn.accent{background:var(--accent);color:var(--accent-ink)}
+.status{font-size:.8125rem;font-weight:600;margin-top:var(--space-xs);min-height:20px}
+.status:empty{display:none}
+.status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.wait{color:var(--ink-3)}
+.privacy{margin-top:var(--space-xl);font-size:.8125rem;color:var(--ink-3);max-width:52ch}
+
+/* dock */
+.dock{
+  position:sticky;bottom:0;padding:var(--space-md) 0 max(env(safe-area-inset-bottom),var(--space-lg));
+  background:linear-gradient(to top,var(--bg) 70%,transparent);
+  display:grid;justify-items:center;gap:var(--space-sm);
+}
+.dock-row{display:grid;grid-template-columns:44px auto 44px;align-items:center;gap:var(--space-lg)}
+.mic{
+  position:relative;width:84px;height:84px;border-radius:50%;background:var(--accent);color:var(--accent-ink);
+  display:grid;place-items:center;box-shadow:var(--shadow-lg);transition:transform .2s var(--ease-out),background .25s;
+}
+.mic:hover{background:var(--accent-press)}
+.mic:active{transform:scale(.95)}
+.mic::before{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid var(--accent);opacity:0;transform:scale(.9)}
+.mic[data-state="rec"]{background:var(--rec)}
+.mic[data-state="rec"]::before{border-color:var(--rec);animation:ring 1.6s var(--ease-out) infinite}
+.mic[data-state="work"]{background:var(--ink-2);pointer-events:none}
+.mic .spin{display:none;width:28px;height:28px;border-radius:50%;border:2.5px solid rgba(249,249,245,.35);border-top-color:var(--accent-ink);animation:spin .8s linear infinite}
+.mic[data-state="work"] .spin{display:block}
+.mic[data-state="work"] .ico-mic,.mic[data-state="rec"] .ico-mic{display:none}
+.mic .ico-stop{display:none;width:24px;height:24px;border-radius:6px;background:var(--accent-ink)}
+.mic[data-state="rec"] .ico-stop{display:block}
+@keyframes ring{0%{opacity:.55;transform:scale(.92)}100%{opacity:0;transform:scale(1.28)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.side{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink-2);opacity:0;pointer-events:none;transition:opacity .2s var(--ease-out),background .2s}
+.side.show{opacity:1;pointer-events:auto}
+.side:hover{background:var(--sunk);color:var(--ink)}
+.wave{width:160px;height:28px;display:block;opacity:0;transition:opacity .25s var(--ease-out)}
+.dock:has(.mic[data-state="rec"]) .wave{opacity:1}
+.hint{font-size:.875rem;color:var(--ink-2);font-weight:500;text-align:center;min-height:21px;font-variant-numeric:tabular-nums}
+.hint b{color:var(--ink);font-weight:700}
+.hint.err{color:var(--err)}
+kbd{font-family:inherit;font-size:.75rem;font-weight:700;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--ink-2)}
+
+/* toast */
+.toast{
+  position:fixed;left:50%;top:max(env(safe-area-inset-top),16px);transform:translate(-50%,-140%);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.875rem;font-weight:600;
+  transition:transform .35s var(--ease-out);z-index:50;white-space:nowrap
+}
+.toast.show{transform:translate(-50%,0)}
+
+/* settings sheet */
+dialog.sheet{
+  margin:auto auto 0;width:100%;max-width:560px;max-height:88dvh;border:0;padding:0;border-radius:var(--r-lg) var(--r-lg) 0 0;
+  background:var(--surface);color:var(--ink);overflow:auto;
+}
+dialog.sheet[open]{animation:up .45s var(--ease-out)}
+dialog.sheet::backdrop{background:rgba(23,23,12,.35)}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.sheet-in{padding:var(--space-md) var(--space-lg) max(env(safe-area-inset-bottom),var(--space-xl))}
+.grab{width:40px;height:4px;border-radius:4px;background:var(--line);margin:0 auto var(--space-md)}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md)}
+.sheet-head h2{font-size:1.5rem;font-weight:800;letter-spacing:-0.03em}
+.group{padding:var(--space-lg) 0;border-top:1px solid var(--line);display:grid;gap:var(--space-md)}
+.group > .eyebrow{margin-bottom:-4px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-md)}
+.row label,.row .lbl{font-weight:600;font-size:.9375rem}
+.row small{display:block;font-weight:400;color:var(--ink-3);font-size:.8125rem}
+.sel{min-height:40px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);padding:0 12px;font-size:.875rem;font-weight:600;max-width:52%}
+.switch{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex:none;transition:background .2s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow-sm);transition:transform .25s var(--ease-out)}
+.switch:checked{background:var(--ink)}
+.switch:checked::after{transform:translateX(18px)}
+.spell{width:100%;min-height:104px;border:1px solid var(--line);border-radius:var(--r-sm);padding:var(--space-sm);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8125rem;line-height:1.6;resize:vertical;background:var(--bg)}
+.spell:focus{outline:none;border-color:var(--ink-2)}
+.about{font-size:.8125rem;color:var(--ink-3)}
+.about strong{color:var(--ink);font-weight:700}
+
+@media (min-width:768px){
+  .app{padding-top:var(--space-2xl)}
+  .editor textarea{font-size:1.25rem}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* dark mode (toggle in header + settings) */
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#161613; --surface:#1f1f1b; --sunk:#292924; --line:#383832;
+  --ink:#f1f0ea; --ink-2:#c7c6be; --ink-3:#9d9c93;
+  --accent:#f0603f; --accent-press:#ff7a5c; --accent-soft:#3a2420; --accent-ink:#fff8f5;
+  --ok:#4cc38a; --ok-soft:#1b3326; --err:#ff6b5e; --err-soft:#3a1f1c; --rec:#e5484d;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4); --shadow-lg: 0 18px 40px -18px rgba(0,0,0,.8);
+}
+:root[data-theme="dark"] dialog.sheet::backdrop{background:rgba(0,0,0,.55)}
+.head-actions{display:flex;gap:2px}
+.icon-btn .moon{display:none} :root[data-theme="dark"] .icon-btn .sun{display:none} :root[data-theme="dark"] .icon-btn .moon{display:block}
+/* setup / permissions */
+.perms{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--space-md) var(--space-md) var(--space-sm);margin-bottom:var(--space-md)}
+.perms h2{font-size:1rem;font-weight:800;margin-bottom:2px}
+.perms > p{font-size:.8125rem;color:var(--ink-3);margin-bottom:var(--space-xs)}
+.plist{list-style:none;padding:0;display:grid}
+.plist li{display:flex;align-items:center;justify-content:space-between;gap:var(--space-sm);padding:10px 0;border-top:1px solid var(--line)}
+.plist li:first-child{border-top:0}
+.plist b{display:block;font-size:.9375rem;font-weight:700}
+.plist small{display:block;color:var(--ink-3);font-size:.8125rem;line-height:1.35}
+.btn.sm{min-height:36px;padding:0 16px;font-size:.8125rem;flex:none}
+.ok-tag{flex:none;font-size:.75rem;font-weight:700;color:var(--ok);background:var(--ok-soft);padding:4px 10px;border-radius:999px}
+.tip{font-size:.8125rem;color:var(--ink-2);background:var(--sunk);border-radius:var(--r-sm);padding:var(--space-sm);margin:var(--space-xs) 0}
+.tip .link{min-height:0;color:var(--accent-press);text-decoration:underline}
+.recent li.fail p{color:var(--err)}
+.recent li.pend p{color:var(--ink-3)}
+.legal{font-size:.75rem;color:var(--ink-3);line-height:1.45}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="wordmark" aria-label="Wispr">wispr<i class="dot"></i></div>
+      <div class="byline">by Deepu Gupta</div>
+    </div>
+    <div class="head-actions">
+    <button class="icon-btn" id="themeBtn" aria-label="Dark mode" aria-pressed="false"><svg class="sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></button>
+    <button class="icon-btn" id="openSettings" aria-label="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+    </div>
+  </header>
+
+  <!-- controls -->
+  <section class="controls" id="controls" aria-label="Dictation options">
+    <div class="seg" role="group" aria-label="Mode">
+      <i class="thumb" id="thumb"></i>
+      <button data-mode="write" aria-pressed="false">Write</button>
+      <button data-mode="polish" aria-pressed="true">Polish</button>
+      <button data-mode="translate" aria-pressed="false">Translate</button>
+    </div>
+    <div class="langs">
+      <label class="pill"><span>I speak</span><select id="lang" aria-label="Language I speak"></select></label>
+      <span class="arrow hidden" id="toArrow">→</span>
+      <label class="pill hidden" id="targetPill"><span>Write in</span><select id="target" aria-label="Translate into"></select></label>
+    </div>
+  </section>
+
+  <main id="main">
+    <!-- onboarding -->
+    <section class="onboard hidden" id="onboard">
+      <h1>Speak it.<br><em>Wispr</em> writes it.</h1>
+      <p class="lead">Talk in Hindi, English, Hinglish or 23 more languages. Get clean text you can paste into WhatsApp, Gmail, notes, anywhere.</p>
+      <ol class="steps">
+        <li><div><h2>Get a free Groq key</h2><p>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>, sign in, tap <b>Create API Key</b> and copy it. It starts with <code>gsk_</code>.</p></div></li>
+        <li><div><h2>Paste it here</h2>
+          <div class="keyrow">
+            <input class="field" id="keyInput" type="password" placeholder="gsk_…" autocomplete="off" spellcheck="false" aria-label="Groq API key">
+            <button class="btn" id="verifyBtn">Verify</button>
+          </div>
+          <p class="status" id="keyStatus" role="status"></p>
+        </div></li>
+        <li><div><h2>Allow permissions and talk</h2><p>Allow the mic and the Wispr bubble once. Then open any keyboard in any app, tap the bubble, speak, and your words get typed right there.</p></div></li>
+      </ol>
+      <p class="privacy">Your key is locked with Android Keystore encryption on this phone and never shown again. Audio goes straight from your phone to Groq over HTTPS. No Wispr server, no account, no tracking.</p>
+    </section>
+
+    <!-- workspace -->
+    <section id="work" class="hidden" style="display:flex;flex-direction:column;flex:1">
+      <section class="perms hidden" id="perms" aria-label="Finish setup">
+        <h2>Finish setup</h2>
+        <p>Allow these once. Wispr then works over every keyboard, in every app.</p>
+        <ul class="plist" id="permList"></ul>
+        <div class="tip hidden" id="restrictedTip">Android says <b>"Restricted setting"</b>? Tap <button class="link" data-perm="appinfo">Open App info</button>, then <b>&#8942;</b> (top right) &rarr; <b>Allow restricted settings</b>. Then come back and turn on the Wispr bubble.</div>
+      </section>
+      <div class="editor">
+        <label for="out" class="sr">Your text</label>
+        <textarea id="out" placeholder="Tap the mic and start talking. Your words land here, at the cursor."></textarea>
+        <div class="bar">
+          <span class="count" id="count">0 words</span>
+          <button class="tbtn" id="clearBtn" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>Clear</button>
+          <button class="tbtn" id="shareBtn" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>Share</button>
+          <button class="tbtn" id="copyBtn" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Copy</span></button>
+        </div>
+      </div>
+      <div class="recent" id="recentWrap">
+        <div class="recent-head"><span class="eyebrow">Recent</span><button class="link hidden" id="clearHist">Clear</button></div>
+        <ol id="recent"></ol>
+        <p class="empty-note" id="emptyNote">Nothing yet. Your last 20 dictations show up here; tap one to copy it again.</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="dock" id="dock">
+    <canvas class="wave" id="wave" width="320" height="56" aria-hidden="true"></canvas>
+    <div class="dock-row">
+      <button class="side" id="cancelBtn" aria-label="Cancel recording"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      <button class="mic" id="mic" data-state="idle" aria-label="Start dictation">
+        <svg class="ico-mic" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg><i class="ico-stop"></i><i class="spin"></i>
+      </button>
+      <button class="side" id="undoBtn" aria-label="Undo last insert"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
+    </div>
+    <p class="hint" id="hint" role="status" aria-live="polite">Tap to speak</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<dialog class="sheet" id="settings" aria-labelledby="setTitle">
+  <div class="sheet-in">
+    <div class="grab"></div>
+    <div class="sheet-head"><h2 id="setTitle">Settings</h2><button class="icon-btn" id="closeSettings" aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+
+    <div class="group">
+      <span class="eyebrow">Connection</span>
+      <div class="keyrow" style="margin:0">
+        <input class="field" id="keyEdit" type="password" autocomplete="off" spellcheck="false" aria-label="Groq API key">
+        <button class="btn" id="keySave">Save</button>
+      </div>
+      <p class="status" id="keyEditStatus" style="margin:-8px 0 0"></p>
+      <button class="link" id="removeKey" style="justify-self:start;color:var(--err)">Remove key from this device</button>
+      <p class="legal">Stored encrypted (AES-256-GCM, Android Keystore). The app screen never sees your key; only Wispr's secure engine uses it.</p>
+      <div class="row"><label for="sttModel">Speech engine<small>Turbo is fastest; Large is most accurate</small></label>
+        <select class="sel" id="sttModel"><option value="whisper-large-v3-turbo">Turbo</option><option value="whisper-large-v3">Large</option></select></div>
+      <div class="row"><label for="llmModel">Polish &amp; translate<small>Groq text model</small></label>
+        <select class="sel" id="llmModel"><option value="llama-3.3-70b-versatile">Llama 3.3 70B</option><option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option><option value="openai/gpt-oss-120b">GPT-OSS 120B</option></select></div>
+    </div>
+
+    <div class="group">
+      <span class="eyebrow">Look &amp; bubble</span>
+      <div class="row"><label for="darkSw">Dark mode</label><input type="checkbox" class="switch" id="darkSw"></div>
+      <div class="row"><label for="bubbleSw">Bubble over keyboard<small>Pops up with any keyboard. Tap to talk, tap again to type it in. Hold to talk, release to type.</small></label><input type="checkbox" class="switch" id="bubbleSw"></div>
+    </div>
+
+    <div class="group">
+      <span class="eyebrow">Permissions</span>
+      <ul class="plist" id="permList2"></ul>
+    </div>
+
+    <div class="group">
+      <span class="eyebrow">Text</span>
+      <div class="row"><label for="script">Writes in<small>Roman: “kal meeting hai” instead of “कल मीटिंग है”</small></label>
+        <select class="sel" id="script"><option value="native">As spoken</option><option value="roman">Roman letters</option></select></div>
+      <div class="row"><label for="autoCopy">Copy automatically<small>Ready to paste in any app</small></label><input type="checkbox" class="switch" id="autoCopy"></div>
+      <div class="row"><label for="keepHist">Keep recent list<small>Stored only on this device</small></label><input type="checkbox" class="switch" id="keepHist"></div>
+      <div class="row"><label for="sounds">Start/stop sound</label><input type="checkbox" class="switch" id="sounds"></div>
+    </div>
+
+    <div class="group">
+      <span class="eyebrow">Spellings</span>
+      <p style="font-size:.875rem;color:var(--ink-2);margin-top:-6px">One rule per line: <code>heard = correct</code></p>
+      <textarea class="spell" id="spell" spellcheck="false" placeholder="deepu gupta = Deepu Gupta&#10;whats app = WhatsApp"></textarea>
+    </div>
+
+    <div class="group">
+      <p class="about"><strong>Wispr</strong> by Deepu Gupta · v<span id="ver"></span> · Uses your own Groq key; Groq's own limits apply.</p>
+      <p class="legal" id="legal">&copy; 2026 Deepu Gupta. All rights reserved. Wispr by Deepu Gupta, its code, design and name belong to Deepu Gupta. Copying, re-branding or re-uploading this app is not allowed.</p>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/*
+ * Wispr by Deepu Gupta
+ * Copyright (c) 2026 Deepu Gupta. All rights reserved.
+ */
+(() => {
+  "use strict";
+  const N = window.WisprNative;
+  if (!N) { document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">Wispr by Deepu Gupta runs inside its Android app.</p>'; return; }
+
+  /* ---------- data ---------- */
+  const LANGS = [
+    ["en","English only"],["hi","हिन्दी Hindi"],["bn","বাংলা Bengali"],["ta","தமிழ் Tamil"],["te","తెలుగు Telugu"],
+    ["mr","मराठी Marathi"],["gu","ગુજરાતી Gujarati"],["kn","ಕನ್ನಡ Kannada"],["ml","മലയാളം Malayalam"],["pa","ਪੰਜਾਬੀ Punjabi"],
+    ["or","ଓଡ଼ିଆ Odia"],["as","অসমীয়া Assamese"],["ur","اردو Urdu"],["ne","नेपाली Nepali"],["sd","سنڌي Sindhi"],["si","සිංහල Sinhala"],
+    ["ar","العربية Arabic"],["es","Español"],["fr","Français"],["de","Deutsch"],["pt","Português"],["ru","Русский"],
+    ["zh","中文 Chinese"],["ja","日本語 Japanese"],["ko","한국어 Korean"],["id","Bahasa Indonesia"],["auto","Auto detect"]
+  ];
+  const TARGETS = LANGS.filter(l => l[0] !== "auto").map(([c,n]) => [c, c === "en" ? "English" : n]);
+  const langName = c => (LANGS.find(l => l[0] === c) || [,"English"])[1].replace(/^\S+\s(?=[A-Z])/,"").replace(" only","");
+
+  const $ = id => document.getElementById(id);
+  let S = JSON.parse(N.getSettings()), H = [];
+  const set = (k, v) => { S[k] = v; N.setSetting(k, JSON.stringify(v)); };
+  const out = $("out"), mic = $("mic"), hint = $("hint");
+
+  /* ---------- native bridge ---------- */
+  const pend = {}; let seq = 0;
+  window.WisprCb = (id, ok, data) => { const p = pend[id]; if (!p) return; delete pend[id]; ok ? p.res(data) : p.rej(new Error(data)); };
+  window.WisprStatus = (id, msg) => { const p = pend[id]; if (p && p.status) p.status(msg); };
+  const call = (fn, status) => new Promise((res, rej) => { const id = "c" + (++seq); pend[id] = {res, rej, status}; fn(id); });
+  window.WisprHistoryChanged = () => loadH();
+  window.WisprOnResume = () => { S = JSON.parse(N.getSettings()); applyTheme(); route(); loadH(); };
+  window.WisprBack = () => {
+    if ($("settings").open) { $("settings").close(); return true; }
+    if (recording) { cancel(); return true; }
+    return false;
+  };
+
+  /* ---------- theme ---------- */
+  function applyTheme(){
+    document.documentElement.dataset.theme = S.dark ? "dark" : "light";
+    $("themeBtn").setAttribute("aria-pressed", String(!!S.dark));
+    $("darkSw").checked = !!S.dark;
+  }
+  const toggleDark = v => { set("dark", !!v); applyTheme(); };
+  $("themeBtn").onclick = () => toggleDark(!S.dark);
+  $("darkSw").onchange = e => toggleDark(e.target.checked);
+  applyTheme();
+
+  /* ---------- UI setup ---------- */
+  const fill = (sel, list, val) => { sel.innerHTML = list.map(([c,n]) => `<option value="${c}">${n}</option>`).join(""); sel.value = val; };
+  fill($("lang"), LANGS, S.lang); fill($("target"), TARGETS, S.target);
+  $("lang").onchange = e => set("lang", e.target.value);
+  $("target").onchange = e => set("target", e.target.value);
+
+  const segBtns = [...document.querySelectorAll(".seg button")];
+  function setMode(m){
+    set("mode", m);
+    segBtns.forEach((b,i) => { const on = b.dataset.mode === m; b.setAttribute("aria-pressed", on); if (on) $("thumb").style.transform = `translateX(${i*100}%)`; });
+    const tr = m === "translate";
+    $("targetPill").classList.toggle("hidden", !tr); $("toArrow").classList.toggle("hidden", !tr);
+  }
+  segBtns.forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  setMode(S.mode);
+
+  function route(){
+    const has = !!S.hasKey;
+    $("onboard").classList.toggle("hidden", has);
+    $("work").classList.toggle("hidden", !has);
+    $("controls").classList.toggle("hidden", !has);
+    $("dock").classList.toggle("hidden", !has);
+    renderPerms();
+  }
+
+  let toastT;
+  function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1800); }
+
+  /* ---------- permissions ---------- */
+  const PERMS = [
+    ["mic","Microphone","So Wispr can hear you"],
+    ["a11y","Wispr bubble on every keyboard","Pops up with any keyboard and types your words into the box you picked"],
+    ["notif","Notifications","Tells you if something fails, with a Retry button"],
+    ["battery","Run in background","Keeps the bubble ready, so the phone doesn't kill it"]
+  ];
+  function renderPerms(){
+    let p = {};
+    try { p = JSON.parse(N.perms()); } catch {}
+    const html = PERMS.map(([k,t,d]) => `<li><div><b>${t}</b><small>${d}</small></div>${p[k] ? '<span class="ok-tag">On</span>' : `<button class="btn sm" data-perm="${k}">Allow</button>`}</li>`).join("");
+    $("permList").innerHTML = html; $("permList2").innerHTML = html;
+    $("perms").classList.toggle("hidden", PERMS.every(([k]) => p[k]));
+    $("restrictedTip").classList.toggle("hidden", !!p.a11y);
+  }
+  document.addEventListener("click", e => { const b = e.target.closest("[data-perm]"); if (b) N.requestPerm(b.dataset.perm); });
+
+  /* ---------- recording (native, encrypted, auto-retry) ---------- */
+  let recording = false, busy = false, t0 = 0, tick, lvl, maxT;
+  const levels = new Array(40).fill(0);
+  const wave = $("wave"), wctx = wave.getContext("2d");
+
+  function setState(st, msg){
+    mic.dataset.state = st;
+    mic.setAttribute("aria-label", st === "rec" ? "Stop and write" : "Start dictation");
+    $("cancelBtn").classList.toggle("show", st === "rec");
+    hint.classList.toggle("err", st === "err");
+    if (st === "idle") hint.textContent = "Tap to speak";
+    else if (st === "work") hint.textContent = S.mode === "write" ? "Writing it down…" : S.mode === "polish" ? "Polishing…" : `Translating to ${langName(S.target)}…`;
+    else if (msg) hint.textContent = msg;
+    if (st === "err") setTimeout(() => { if (mic.dataset.state === "err") setState("idle"); }, 6000);
+  }
+
+  function drawWave(){
+    const w = wave.width, h = wave.height, n = levels.length, bw = w / n;
+    wctx.clearRect(0,0,w,h);
+    const live = mic.dataset.state === "rec";
+    wctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(live ? "--ink" : "--line");
+    levels.forEach((v,i) => { const bh = Math.max(4, v*h); const x=i*bw+bw*.25, y=(h-bh)/2; if (wctx.roundRect){ wctx.beginPath(); wctx.roundRect(x, y, bw*.5, bh, 3); wctx.fill(); } else wctx.fillRect(x, y, bw*.5, bh); });
+  }
+  drawWave();
+
+  function start(){
+    if (busy || recording) return;
+    if (!N.startRec()) return setState("err","Allow the microphone, then tap again.");
+    recording = true; t0 = Date.now();
+    setState("rec", "Listening 0:00 · tap to finish");
+    tick = setInterval(() => { const s = Math.floor((Date.now()-t0)/1000); hint.textContent = `Listening ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")} · tap to finish`; }, 250);
+    lvl = setInterval(() => { levels.shift(); levels.push(Math.min(1, N.level() * 3)); drawWave(); }, 70);
+    maxT = setTimeout(stop, 15*60*1000);
+  }
+  function teardown(){ recording = false; clearInterval(tick); clearInterval(lvl); clearTimeout(maxT); levels.fill(0); drawWave(); }
+  async function stop(){
+    if (!recording) return;
+    teardown(); busy = true; setState("work");
+    try { finishOk(await call(id => N.stopRec(id), m => { hint.textContent = m; })); }
+    catch (e) { setState("err", e.message); }
+    finally { busy = false; loadH(); }
+  }
+  function cancel(){ N.cancelRec(); teardown(); setState("idle"); toast("Discarded"); }
+  function finishOk(text){
+    insert(text);
+    if (S.autoCopy){
+      const ok = N.copy(text); setState("idle");
+      hint.innerHTML = ok ? "<b>Copied.</b> Paste it in any app" : "Done. Tap Copy to paste it anywhere";
+      setTimeout(()=>{ if (mic.dataset.state==="idle") setState("idle"); }, 5000);
+    } else setState("idle");
+  }
+
+  let caret = null, lastInsert = null;
+  ["keyup","click","select","input"].forEach(ev => out.addEventListener(ev, () => caret = out.selectionStart));
+  function insert(text){
+    const v = out.value, at = caret ?? v.length;
+    const before = v.slice(0,at), after = v.slice(at);
+    const pad = before && !/\s$/.test(before) ? " " : "";
+    lastInsert = {prev:v, caret:at};
+    out.value = before + pad + text + after;
+    caret = at + pad.length + text.length;
+    out.setSelectionRange(caret, caret);
+    $("undoBtn").classList.add("show");
+    sync();
+  }
+  $("undoBtn").onclick = () => { if (!lastInsert) return; out.value = lastInsert.prev; caret = lastInsert.caret; lastInsert = null; $("undoBtn").classList.remove("show"); sync(); toast("Undone"); };
+
+  function sync(){
+    const t = out.value.trim(), n = t ? t.split(/\s+/).length : 0;
+    $("count").textContent = `${n} word${n===1?"":"s"}`;
+    ["clearBtn","shareBtn","copyBtn"].forEach(id => $(id).disabled = !t);
+  }
+  out.addEventListener("input", sync);
+
+  $("copyBtn").onclick = () => {
+    const b = $("copyBtn"), ok = N.copy(out.value.trim());
+    b.classList.toggle("done", ok); b.querySelector("span").textContent = ok ? "Copied" : "Copy failed";
+    setTimeout(() => { b.classList.remove("done"); b.querySelector("span").textContent = "Copy"; }, 1600);
+  };
+  $("shareBtn").onclick = () => N.share(out.value.trim());
+  $("clearBtn").onclick = () => { lastInsert = {prev:out.value, caret}; out.value=""; caret=0; $("undoBtn").classList.add("show"); sync(); };
+
+  document.addEventListener("visibilitychange", () => { if (document.hidden && recording) stop(); });
+  mic.onclick = () => recording ? stop() : start();
+  $("cancelBtn").onclick = cancel;
+  addEventListener("keydown", e => {
+    if ($("settings").open || !S.hasKey) return;
+    const typing = /INPUT|TEXTAREA|SELECT|BUTTON/.test(document.activeElement.tagName);
+    if (e.code === "Space" && !typing && !e.repeat){ e.preventDefault(); mic.click(); }
+    if (e.key === "Escape" && recording) cancel();
+  });
+
+  /* ---------- history (encrypted on device, shared with the bubble) ---------- */
+  function ago(t){ const s=(Date.now()-t)/1000; if(s<60) return "now"; if(s<3600) return Math.floor(s/60)+"m"; if(s<86400) return Math.floor(s/3600)+"h"; return new Date(t).toLocaleDateString(undefined,{day:"numeric",month:"short"}); }
+  const esc = s => String(s || "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  function loadH(){ try { H = JSON.parse(N.getHistory()); } catch { H = []; } renderH(); }
+  function renderH(){
+    $("recentWrap").classList.toggle("hidden", !S.keepHist && !H.length);
+    $("recent").innerHTML = H.map((h,i) => {
+      if (h.status === "ok") return `<li><button data-i="${i}"><p>${esc(h.text)}</p><small>${ago(h.t)}</small></button></li>`;
+      if (h.status === "pending" && Date.now() - h.t < 180000) return `<li class="pend"><button disabled><p>Writing it down…</p><small>${ago(h.t)}</small></button></li>`;
+      return `<li class="fail"><button data-retry="${i}"><p>${esc(h.err || "Didn't finish. Audio is saved.")}</p><small>Tap to retry</small></button></li>`;
+    }).join("");
+    $("emptyNote").classList.toggle("hidden", H.length > 0);
+    $("clearHist").classList.toggle("hidden", !H.length);
+  }
+  $("recent").onclick = async e => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    if (b.dataset.retry !== undefined){
+      const h = H[b.dataset.retry]; if (!h || busy || recording) return;
+      busy = true; setState("work");
+      try { finishOk(await call(id => N.retry(h.id, id), m => { hint.textContent = m; })); toast("Recovered"); }
+      catch (err) { setState("err", err.message); }
+      finally { busy = false; loadH(); }
+      return;
+    }
+    const h = H[b.dataset.i]; if (h && N.copy(h.text)) toast("Copied");
+  };
+  $("clearHist").onclick = () => N.clearHistory();
+
+  /* ---------- key ---------- */
+  async function doVerify(input, status, onOk){
+    const k = input.value.trim().replace(/^["']|["']$/g,"");
+    status.className = "status";
+    if (!/^gsk_\S{10,}$/.test(k)){ status.className = "status err"; status.textContent = "That doesn't look like a Groq key. It should start with gsk_"; return; }
+    status.className = "status wait"; status.textContent = "Checking with Groq…";
+    try {
+      await call(id => N.verifyKey(k, id));
+      input.value = ""; S = JSON.parse(N.getSettings());
+      status.className = "status ok"; status.textContent = "Accepted, encrypted and saved";
+      onOk && onOk();
+    } catch (e) { status.className = "status err"; status.textContent = e.message; }
+  }
+  $("verifyBtn").onclick = () => doVerify($("keyInput"), $("keyStatus"), () => setTimeout(() => { route(); setState("idle"); toast("You're set. Allow the permissions below."); }, 600));
+  $("keyInput").onkeydown = e => e.key === "Enter" && $("verifyBtn").click();
+
+  /* ---------- settings ---------- */
+  const dlg = $("settings");
+  $("openSettings").onclick = () => {
+    S = JSON.parse(N.getSettings());
+    $("keyEdit").value = ""; $("keyEdit").placeholder = S.keyHint || "gsk_…"; $("keyEditStatus").textContent = "";
+    $("sttModel").value = S.stt; $("llmModel").value = S.llm; $("script").value = S.script;
+    $("autoCopy").checked = S.autoCopy; $("keepHist").checked = S.keepHist; $("sounds").checked = S.sounds; $("spell").value = S.spell;
+    $("bubbleSw").checked = S.bubble; $("darkSw").checked = !!S.dark; $("ver").textContent = S.version;
+    renderPerms();
+    dlg.showModal();
+  };
+  $("closeSettings").onclick = () => dlg.close();
+  dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+  $("keySave").onclick = () => doVerify($("keyEdit"), $("keyEditStatus"), () => { $("keyEdit").placeholder = S.keyHint || "gsk_…"; route(); });
+  $("removeKey").onclick = () => { N.removeKey(); S = JSON.parse(N.getSettings()); dlg.close(); $("keyInput").value = ""; $("keyStatus").textContent = ""; route(); toast("Key removed"); };
+  $("sttModel").onchange = e => set("stt", e.target.value);
+  $("llmModel").onchange = e => set("llm", e.target.value);
+  $("script").onchange = e => set("script", e.target.value);
+  $("autoCopy").onchange = e => set("autoCopy", e.target.checked);
+  $("keepHist").onchange = e => { set("keepHist", e.target.checked); renderH(); };
+  $("sounds").onchange = e => set("sounds", e.target.checked);
+  $("bubbleSw").onchange = e => set("bubble", e.target.checked);
+  let spellT; $("spell").oninput = e => { clearTimeout(spellT); const v = e.target.value; spellT = setTimeout(() => set("spell", v), 400); };
+
+  /* ---------- boot ---------- */
+  route(); loadH(); sync(); setState("idle");
+})();
+
+</script>
+</body>
+</html>
