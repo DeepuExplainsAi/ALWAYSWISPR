@@ -1,6 +1,3 @@
-<img width="1260" height="2800" alt="1000073165" src="https://github.com/user-attachments/assets/6c52fb07-d5f6-4484-9f63-d7a3262e6557" />
-
-
 https://github.com/user-attachments/assets/a8705ba2-14ce-4e0e-9d79-a0889cc28982
 
 # Wispr by Deepu Gupta (Android)
