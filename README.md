@@ -1,7 +1,14 @@
 https://github.com/user-attachments/assets/a8705ba2-14ce-4e0e-9d79-a0889cc28982
-<a href="PASTE_APK_LINK_HERE">
-  <img src="logo.png" width="120" alt="Download Wispr APK">
-</a>
+
+
+
+
+<p align="center">
+  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/download/v3.0.0/Wispr-by-Deepu-Gupta-v3.0.0.apk">
+    <img src="https://img.shields.io/badge/Download-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Wispr APK">
+  </a>
+</p>
+
 # Wispr by Deepu Gupta (Android)
 
 © 2026 Deepu Gupta. All rights reserved. See `LICENSE`.
