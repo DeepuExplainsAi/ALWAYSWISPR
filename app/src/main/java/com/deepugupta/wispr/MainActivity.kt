@@ -14,7 +14,9 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.window.OnBackInvokedDispatcher
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -67,6 +69,18 @@ class MainActivity : Activity() {
             }
         }
         web.addJavascriptInterface(Bridge(), "WisprNative")
+        // Android 15+ draws apps edge-to-edge: keep the page clear of the status bar, nav bar and keyboard.
+        if (Build.VERSION.SDK_INT >= 30) {
+            web.setOnApplyWindowInsetsListener { v, insets ->
+                val b = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime() or WindowInsets.Type.displayCutout())
+                v.setPadding(b.left, b.top, b.right, b.bottom)
+                WindowInsets.CONSUMED
+            }
+        }
+        // Android 16 (targetSdk 36) no longer calls onBackPressed: use the new back callback.
+        if (Build.VERSION.SDK_INT >= 33) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
+        }
         web.loadUrl("https://$HOST/assets/web/index.html")
         store.addListener(onStoreChange)
         firstRunAsk()
@@ -100,9 +114,14 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    private fun handleBack() {
         web.evaluateJavascript("window.WisprBack?WisprBack():false") { r -> if (r != "true") finish() }
+    }
+
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (Build.VERSION.SDK_INT >= 33) super.onBackPressed() else handleBack()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -167,8 +186,11 @@ class MainActivity : Activity() {
     private fun applyBars() {
         val dark = store.isDark()
         val c = if (dark) DARK_BG else LIGHT_BG
-        window.statusBarColor = c
-        window.navigationBarColor = c
+        window.decorView.setBackgroundColor(c)
+        if (Build.VERSION.SDK_INT < 35) {
+            window.statusBarColor = c
+            window.navigationBarColor = c
+        }
         if (Build.VERSION.SDK_INT >= 30) {
             val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
             window.insetsController?.setSystemBarsAppearance(if (dark) 0 else mask, mask)
@@ -206,9 +228,13 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun verifyKey(k: String, id: String) {
-            val key = k.trim()
-            if (!KEY_RE.matches(key)) {
+            val key = Groq.cleanKey(k)
+            if (!key.startsWith("gsk_")) {
                 cb(id, false, "That doesn't look like a Groq key. It should start with gsk_")
+                return
+            }
+            if (!KEY_RE.matches(key)) {
+                cb(id, false, "This key looks cut off or has extra characters (${key.length} chars). Copy it again from console.groq.com/keys.")
                 return
             }
             Engine.io {
@@ -217,7 +243,13 @@ class MainActivity : Activity() {
                     store.apiKey = key
                     cb(id, true, "ok")
                 } catch (e: GroqError) {
-                    cb(id, false, e.message ?: "Couldn't verify the key")
+                    if (e.retryable) {
+                        // No internet / Groq busy: don't block the user. Save it; the first dictation re-checks it.
+                        store.apiKey = key
+                        cb(id, true, "saved-unverified")
+                    } else {
+                        cb(id, false, e.message ?: "Couldn't verify the key")
+                    }
                 }
             }
         }
@@ -290,8 +322,8 @@ class MainActivity : Activity() {
     companion object {
         private const val HOST = "appassets.androidplatform.net"
         private const val REQ = 7
-        private val KEY_RE = Regex("^gsk_[A-Za-z0-9]{10,200}$")
-        private val LIGHT_BG = 0xFFF5F4EE.toInt()
-        private val DARK_BG = 0xFF161613.toInt()
+        private val KEY_RE = Regex("^gsk_[A-Za-z0-9_-]{20,200}$")
+        private val LIGHT_BG = 0xFFFBF7F2.toInt()
+        private val DARK_BG = 0xFF120D09.toInt()
     }
 }

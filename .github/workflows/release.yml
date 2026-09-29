@@ -1,5 +1,6 @@
 # Wispr by Deepu Gupta. Copyright (c) 2026 Deepu Gupta. All rights reserved.
-# Push a tag like v2.0.0  ->  GitHub builds the signed APK and puts it on the Releases page.
+# Push a tag like v3.0.0  ->  GitHub builds the signed APK and puts it on the Releases page.
+# Or: Actions tab -> "Build APK and publish release" -> Run workflow (APK appears under Artifacts).
 name: Build APK and publish release
 
 on:
@@ -13,25 +14,32 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - name: Java 21
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
-      - uses: android-actions/setup-android@v4
-
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
         with:
-          gradle-version: "8.9"
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
+      - name: Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.6.0"
 
       - name: Version
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then V="${GITHUB_REF_NAME#v}"; else V="2.0.0-build.${GITHUB_RUN_NUMBER}"; fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then V="${GITHUB_REF_NAME#v}"; else V="3.0.0-build.${GITHUB_RUN_NUMBER}"; fi
           echo "WISPR_VERSION_NAME=$V" >> "$GITHUB_ENV"
-          echo "WISPR_VERSION_CODE=$((200 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          echo "WISPR_VERSION_CODE=$((300 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
       - name: Signing key (from GitHub Secrets)
         env:
@@ -57,7 +65,8 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "dist/Wispr-by-Deepu-Gupta-v${WISPR_VERSION_NAME}.apk"
           cd dist && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK (Actions artifact)
+        uses: actions/upload-artifact@v6
         with:
           name: Wispr-by-Deepu-Gupta-apk
           path: dist/*
