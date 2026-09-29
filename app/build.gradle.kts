@@ -9,7 +9,7 @@ val ksFile: File? = System.getenv("WISPR_KEYSTORE")?.let { file(it) }?.takeIf { 
 
 android {
     namespace = "com.deepugupta.wispr"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.deepugupta.wispr"
