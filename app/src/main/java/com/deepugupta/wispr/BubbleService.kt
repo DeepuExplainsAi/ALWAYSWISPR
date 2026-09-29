@@ -57,6 +57,7 @@ class BubbleService : AccessibilityService() {
     private lateinit var recorder: Recorder
     private var root: LinearLayout? = null
     private lateinit var bubble: FrameLayout
+    private lateinit var ring: PulseRingView
     private lateinit var icon: ImageView
     private lateinit var spinner: ProgressBar
     private lateinit var cancelBtn: ImageView
@@ -117,6 +118,12 @@ class BubbleService : AccessibilityService() {
             addView(icon, FrameLayout.LayoutParams(dp(26f), dp(26f), Gravity.CENTER))
             addView(spinner, FrameLayout.LayoutParams(dp(28f), dp(28f), Gravity.CENTER))
         }
+        ring = PulseRingView(this)
+        val stageSize = dp(96f)
+        val stage = FrameLayout(this).apply {
+            addView(ring, FrameLayout.LayoutParams(stageSize, stageSize))
+            addView(bubble, FrameLayout.LayoutParams(size, size, Gravity.CENTER))
+        }
         cancelBtn = ImageView(this).apply {
             setImageResource(R.drawable.ic_b_close)
             setColorFilter(Color.WHITE)
@@ -131,7 +138,7 @@ class BubbleService : AccessibilityService() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
             addView(cancelBtn, LinearLayout.LayoutParams(dp(34f), dp(34f)).apply { marginEnd = dp(8f) })
-            addView(bubble, LinearLayout.LayoutParams(size, size))
+            addView(stage, LinearLayout.LayoutParams(stageSize, stageSize))
         }
         lp.width = WindowManager.LayoutParams.WRAP_CONTENT
         lp.height = WindowManager.LayoutParams.WRAP_CONTENT
@@ -280,13 +287,38 @@ class BubbleService : AccessibilityService() {
     }
 
     // ---------- recording ----------
+    private var pulseAnim: android.animation.ValueAnimator? = null
+
+    /** Smooth breathing pulse while recording: gently scales up, fades a touch, and lifts like a beat. */
+    private fun startPulse() {
+        stopPulse()
+        val a = android.animation.ValueAnimator.ofFloat(0f, 1f)
+        a.duration = 620
+        a.repeatCount = android.animation.ValueAnimator.INFINITE
+        a.repeatMode = android.animation.ValueAnimator.REVERSE
+        a.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+        a.addUpdateListener { anim ->
+            val f = anim.animatedValue as Float
+            val sc = 1f + 0.14f * f
+            bubble.scaleX = sc
+            bubble.scaleY = sc
+            bubble.alpha = 1f - 0.30f * f
+            bubble.translationY = -dp(4f) * f
+        }
+        a.start()
+        pulseAnim = a
+    }
+
+    private fun stopPulse() {
+        pulseAnim?.cancel()
+        pulseAnim = null
+    }
+
     private val levelRun = object : Runnable {
         override fun run() {
             if (st != St.REC) return
-            val sc = 1f + (recorder.level() * 0.8f).coerceAtMost(0.28f)
-            bubble.scaleX = sc
-            bubble.scaleY = sc
-            h.postDelayed(this, 80)
+            ring.setLevel(recorder.level())
+            h.postDelayed(this, 70)
         }
     }
     private val maxRun = Runnable { stopRec() }
@@ -304,15 +336,21 @@ class BubbleService : AccessibilityService() {
         }
         Beep.play(this, true)
         setState(St.REC)
+        startPulse()
+        ring.start()
         h.post(levelRun)
         h.postDelayed(maxRun, 15 * 60 * 1000L)
     }
 
     private fun resetScale() {
+        stopPulse()
+        ring.stop()
         h.removeCallbacks(levelRun)
         h.removeCallbacks(maxRun)
         bubble.scaleX = 1f
         bubble.scaleY = 1f
+        bubble.alpha = 1f
+        bubble.translationY = 0f
     }
 
     private fun stopRec() {

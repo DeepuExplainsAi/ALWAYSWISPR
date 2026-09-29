@@ -169,7 +169,7 @@ class Store private constructor(private val app: Context) {
     companion object {
         const val MAX = 40
         val DEF: Map<String, Any> = linkedMapOf<String, Any>(
-            "key" to "", "mode" to "polish", "lang" to "hi", "target" to "en", "script" to "native",
+            "key" to "", "mode" to "polish", "lang" to "hi", "target" to "en", "script" to "roman",
             "stt" to "whisper-large-v3-turbo", "llm" to "llama-3.3-70b-versatile",
             "autoCopy" to true, "keepHist" to true, "sounds" to false, "spell" to "",
             "dark" to false, "bubble" to true

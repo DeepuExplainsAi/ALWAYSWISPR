@@ -372,8 +372,8 @@ dialog.sheet::backdrop{background:rgba(23,23,12,.35)}
 
     <div class="group">
       <span class="eyebrow">Text</span>
-      <div class="row"><label for="script">Writes in<small>Roman: “kal meeting hai” instead of “कल मीटिंग है”</small></label>
-        <select class="sel" id="script"><option value="native">As spoken</option><option value="roman">Roman letters</option></select></div>
+      <div class="row"><label for="hindiSw">Hindi<small>On: recognises Hindi + English speech. Off: English-only recognition, pure Hinglish output.</small></label><input type="checkbox" class="switch" id="hindiSw"></div>
+      <div class="row"><label>Writes in<small>Hinglish — “kal meeting hai”, not “कल मीटिंग है”. Always on.</small></label></div>
       <div class="row"><label for="autoCopy">Copy automatically<small>Ready to paste in any app</small></label><input type="checkbox" class="switch" id="autoCopy"></div>
       <div class="row"><label for="keepHist">Keep recent list<small>Stored only on this device</small></label><input type="checkbox" class="switch" id="keepHist"></div>
       <div class="row"><label for="sounds">Start/stop sound</label><input type="checkbox" class="switch" id="sounds"></div>
@@ -628,9 +628,10 @@ dialog.sheet::backdrop{background:rgba(23,23,12,.35)}
   $("openSettings").onclick = () => {
     S = JSON.parse(N.getSettings());
     $("keyEdit").value = ""; $("keyEdit").placeholder = S.keyHint || "gsk_…"; $("keyEditStatus").textContent = "";
-    $("sttModel").value = S.stt; $("llmModel").value = S.llm; $("script").value = S.script;
+    $("sttModel").value = S.stt; $("llmModel").value = S.llm;
     $("autoCopy").checked = S.autoCopy; $("keepHist").checked = S.keepHist; $("sounds").checked = S.sounds; $("spell").value = S.spell;
     $("bubbleSw").checked = S.bubble; $("darkSw").checked = !!S.dark; $("ver").textContent = S.version;
+    $("hindiSw").checked = S.lang === "hi";
     renderPerms();
     dlg.showModal();
   };
@@ -640,11 +641,11 @@ dialog.sheet::backdrop{background:rgba(23,23,12,.35)}
   $("removeKey").onclick = () => { N.removeKey(); S = JSON.parse(N.getSettings()); dlg.close(); $("keyInput").value = ""; $("keyStatus").textContent = ""; route(); toast("Key removed"); };
   $("sttModel").onchange = e => set("stt", e.target.value);
   $("llmModel").onchange = e => set("llm", e.target.value);
-  $("script").onchange = e => set("script", e.target.value);
   $("autoCopy").onchange = e => set("autoCopy", e.target.checked);
   $("keepHist").onchange = e => { set("keepHist", e.target.checked); renderH(); };
   $("sounds").onchange = e => set("sounds", e.target.checked);
   $("bubbleSw").onchange = e => set("bubble", e.target.checked);
+  $("hindiSw").onchange = e => { const l = e.target.checked ? "hi" : "en"; set("lang", l); $("lang").value = l; };
   let spellT; $("spell").oninput = e => { clearTimeout(spellT); const v = e.target.value; spellT = setTimeout(() => set("spell", v), 400); };
 
   /* ---------- boot ---------- */
