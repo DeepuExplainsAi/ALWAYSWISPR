@@ -1,7 +1,8 @@
 /*
  * Wispr by Deepu Gupta
- * Copyright (c) 2026 Deepu Gupta. All rights reserved.
- * Proprietary software. Unauthorised copying, modification, re-branding or redistribution is prohibited.
+ * Copyright 2026 Deepu Gupta
+ * Licensed under the Apache License, Version 2.0 (see LICENSE).
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.deepugupta.wispr
 
@@ -11,7 +12,12 @@ import android.os.Build
 import android.os.SystemClock
 import java.io.File
 
-/** 16 kHz mono AAC: about 240 KB per minute, well under Groq's upload limit even for long dictation. */
+/**
+ * Mono AAC tuned for speech recognition (v4 accuracy fix):
+ *  - VOICE_RECOGNITION source: the phone's ASR-tuned mic path (no heavy call-style processing that smears fast words);
+ *  - 32 kHz / 64 kbps: clearer consonants than the old 16 kHz / 32 kbps (~480 KB per minute, 15 min = ~7 MB, far under Groq's 25 MB).
+ * Falls back to the plain MIC / 16 kHz setup on phones that refuse it.
+ */
 class Recorder(private val ctx: Context) {
     private var mr: MediaRecorder? = null
     private var file: File? = null
@@ -22,18 +28,31 @@ class Recorder(private val ctx: Context) {
     @Suppress("DEPRECATION")
     private fun newRecorder(): MediaRecorder = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(ctx) else MediaRecorder()
 
+    private class Cfg(val source: Int, val rate: Int, val bits: Int)
+
+    private val configs = listOf(
+        Cfg(MediaRecorder.AudioSource.VOICE_RECOGNITION, 32000, 64000),
+        Cfg(MediaRecorder.AudioSource.MIC, 32000, 64000),
+        Cfg(MediaRecorder.AudioSource.MIC, 16000, 32000)
+    )
+
     @Synchronized
     fun start(): Boolean {
         if (mr != null) return true
+        for (c in configs) if (tryStart(c)) return true
+        return false
+    }
+
+    private fun tryStart(c: Cfg): Boolean {
         val f = File(ctx.cacheDir, "rec_${System.currentTimeMillis()}.m4a")
         val r = newRecorder()
         return try {
-            r.setAudioSource(MediaRecorder.AudioSource.MIC)
+            r.setAudioSource(c.source)
             r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             r.setAudioChannels(1)
-            r.setAudioSamplingRate(16000)
-            r.setAudioEncodingBitRate(32000)
+            r.setAudioSamplingRate(c.rate)
+            r.setAudioEncodingBitRate(c.bits)
             r.setOutputFile(f.absolutePath)
             r.prepare()
             r.start()

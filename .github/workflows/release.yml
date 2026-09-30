@@ -1,5 +1,8 @@
-# Wispr by Deepu Gupta. Copyright (c) 2026 Deepu Gupta. All rights reserved.
-# Push a tag like v2.0.0  ->  GitHub builds the signed APK and puts it on the Releases page.
+# Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0
+# Push a tag like v4.1.0  ->  GitHub builds the signed APK and puts it on the Releases page.
+# Installed apps then see the new version by themselves (in-app updater checks this repo's Releases).
+# Tags with a dash (v4.2.0-beta.1) become pre-releases: the in-app updater ignores them.
+# Or: Actions tab -> "Build APK and publish release" -> Run workflow (APK appears under Artifacts).
 name: Build APK and publish release
 
 on:
@@ -13,28 +16,38 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - name: Java 21
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
-      - uses: android-actions/setup-android@v4
+      - name: Android SDK
+        uses: android-actions/setup-android@v4
         with:
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
-          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+          packages: "platform-tools platforms;android-37 build-tools;37.0.0"
+
+      - name: Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: "8.9"
+          gradle-version: "9.6.0"
 
       - name: Version
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then V="${GITHUB_REF_NAME#v}"; else V="2.0.0-build.${GITHUB_RUN_NUMBER}"; fi
+          BASE="$(grep -E '^wispr.version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then V="${GITHUB_REF_NAME#v}"; else V="${BASE:-4.1.0}-build.${GITHUB_RUN_NUMBER}"; fi
+          if ! echo "$V" | grep -Eq '^[0-9]+\.[0-9]{1,2}\.[0-9]{1,2}([-+][0-9A-Za-z.-]+)?$'; then
+            echo "::error::Tag must look like v4.1.0 (got $GITHUB_REF_NAME)"; exit 1
+          fi
           echo "WISPR_VERSION_NAME=$V" >> "$GITHUB_ENV"
-          echo "WISPR_VERSION_CODE=$((200 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          echo "Version $V"
 
       - name: Signing key (from GitHub Secrets)
         env:
@@ -43,12 +56,16 @@ jobs:
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/wispr.jks"
             echo "WISPR_KEYSTORE=$RUNNER_TEMP/wispr.jks" >> "$GITHUB_ENV"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "::error::Set the WISPR_KEYSTORE_BASE64, WISPR_KEYSTORE_PASSWORD, WISPR_KEY_ALIAS and WISPR_KEY_PASSWORD secrets first (see README, 'Signing key'). Without ONE fixed key every release is signed differently and phones can't update to it."
+            exit 1
           else
-            echo "::warning::WISPR_KEYSTORE_BASE64 secret not set. APK will be signed with a temporary debug key, so users can't update over it later."
+            echo "::warning::No signing secrets: this test APK uses a temporary debug key (fine for testing, not for releases)."
           fi
 
       - name: Build release APK
         env:
+          WISPR_REPO: ${{ github.repository }}
           WISPR_KEYSTORE_PASSWORD: ${{ secrets.WISPR_KEYSTORE_PASSWORD }}
           WISPR_KEY_ALIAS: ${{ secrets.WISPR_KEY_ALIAS }}
           WISPR_KEY_PASSWORD: ${{ secrets.WISPR_KEY_PASSWORD }}
@@ -60,7 +77,8 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "dist/Wispr-by-Deepu-Gupta-v${WISPR_VERSION_NAME}.apk"
           cd dist && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK (Actions artifact)
+        uses: actions/upload-artifact@v6
         with:
           name: Wispr-by-Deepu-Gupta-apk
           path: dist/*
@@ -72,3 +90,5 @@ jobs:
           name: Wispr by Deepu Gupta ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
           files: dist/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ !contains(github.ref_name, '-') }}

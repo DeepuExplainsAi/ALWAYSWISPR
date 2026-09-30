@@ -1,7 +1,8 @@
 /*
  * Wispr by Deepu Gupta
- * Copyright (c) 2026 Deepu Gupta. All rights reserved.
- * Proprietary software. Unauthorised copying, modification, re-branding or redistribution is prohibited.
+ * Copyright 2026 Deepu Gupta
+ * Licensed under the Apache License, Version 2.0 (see LICENSE).
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.deepugupta.wispr
 
@@ -18,6 +19,8 @@ object Notif {
     const val ID_REC = 41
     private const val ID_FAIL = 42
     private const val ID_DONE = 43
+    private const val CH_UPD = "wispr_updates"
+    private const val ID_UPD = 44
 
     private fun nm(ctx: Context): NotificationManager = ctx.getSystemService(NotificationManager::class.java)
 
@@ -27,6 +30,13 @@ object Notif {
             nm.createNotificationChannel(
                 NotificationChannel(CH, "Wispr status", NotificationManager.IMPORTANCE_LOW).apply {
                     description = "Listening and retry alerts"
+                }
+            )
+        }
+        if (nm.getNotificationChannel(CH_UPD) == null) {
+            nm.createNotificationChannel(
+                NotificationChannel(CH_UPD, "App updates", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = "Tells you when a new Wispr version is out on GitHub"
                 }
             )
         }
@@ -85,4 +95,70 @@ object Notif {
     }
 
     fun cancelFail(ctx: Context) { runCatching { nm(ctx).cancel(ID_FAIL) } }
+
+    // ---------- updates ----------
+
+    private fun openUpdate(ctx: Context, action: String): PendingIntent = PendingIntent.getActivity(
+        ctx, action.hashCode(),
+        Intent(ctx, MainActivity::class.java).putExtra("update", action)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
+    /** "Wispr 4.2.0 is out". ready = already downloaded and checked, one tap installs it. */
+    fun update(ctx: Context, version: String, title: String, ready: Boolean) {
+        ensure(ctx)
+        val text = if (ready) "Downloaded and checked. Tap Install, it takes a few seconds." else "Tap to see what's new and update inside the app."
+        val n = Notification.Builder(ctx, CH_UPD)
+            .setSmallIcon(R.drawable.ic_stat_update)
+            .setContentTitle("Wispr $version is available")
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(if (title.isNotBlank() && !title.contains(version)) "$title\n$text" else text))
+            .setAutoCancel(true)
+            .setContentIntent(openUpdate(ctx, "show"))
+            .addAction(Notification.Action.Builder(Icon.createWithResource(ctx, R.drawable.ic_stat_update), if (ready) "Install" else "Update", openUpdate(ctx, "install")).build())
+            .build()
+        post(ctx, ID_UPD, n)
+    }
+
+    /** Android wants the user to confirm the install (older Android, or app in background). */
+    fun updateConfirm(ctx: Context, confirm: Intent) {
+        ensure(ctx)
+        val pi = PendingIntent.getActivity(ctx, 45, confirm, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val n = Notification.Builder(ctx, CH_UPD)
+            .setSmallIcon(R.drawable.ic_stat_update)
+            .setContentTitle("Wispr update is ready")
+            .setContentText("Tap to install it")
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .build()
+        post(ctx, ID_UPD, n)
+    }
+
+    fun updateFailed(ctx: Context, msg: String) {
+        ensure(ctx)
+        val n = Notification.Builder(ctx, CH_UPD)
+            .setSmallIcon(R.drawable.ic_stat_update)
+            .setContentTitle("Wispr update didn't install")
+            .setContentText(msg)
+            .setStyle(Notification.BigTextStyle().bigText(msg))
+            .setAutoCancel(true)
+            .setContentIntent(openUpdate(ctx, "show"))
+            .build()
+        post(ctx, ID_UPD, n)
+    }
+
+    fun updated(ctx: Context, version: String) {
+        ensure(ctx)
+        val n = Notification.Builder(ctx, CH_UPD)
+            .setSmallIcon(R.drawable.ic_stat_update)
+            .setContentTitle("Wispr updated to $version")
+            .setContentText("All set. Your key and settings are kept.")
+            .setAutoCancel(true)
+            .setContentIntent(openApp(ctx))
+            .build()
+        post(ctx, ID_UPD, n)
+    }
+
+    fun cancelUpdate(ctx: Context) { runCatching { nm(ctx).cancel(ID_UPD) } }
 }

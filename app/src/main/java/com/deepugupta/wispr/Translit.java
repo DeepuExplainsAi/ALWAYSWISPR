@@ -1,7 +1,8 @@
 /*
  * Wispr by Deepu Gupta
- * Copyright (c) 2026 Deepu Gupta. All rights reserved.
- * Proprietary software. Unauthorised copying, modification, re-branding or redistribution is prohibited.
+ * Copyright 2026 Deepu Gupta
+ * Licensed under the Apache License, Version 2.0 (see LICENSE).
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.deepugupta.wispr;
 

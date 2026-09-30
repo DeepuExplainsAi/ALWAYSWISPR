@@ -1,7 +1,8 @@
 /*
  * Wispr by Deepu Gupta
- * Copyright (c) 2026 Deepu Gupta. All rights reserved.
- * Proprietary software. Unauthorised copying, modification, re-branding or redistribution is prohibited.
+ * Copyright 2026 Deepu Gupta
+ * Licensed under the Apache License, Version 2.0 (see LICENSE).
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.deepugupta.wispr
 
@@ -23,6 +24,40 @@ class Store private constructor(private val app: Context) {
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
     private val settings: JSONObject = readEnc("s")?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()
     private var history: JSONArray = readEnc("h")?.let { runCatching { JSONArray(it) }.getOrNull() } ?: JSONArray()
+
+    init { migrate() }
+
+    /** One-time fixes for settings saved by older versions. */
+    private fun migrate() {
+        synchronized(lock) {
+            var changed = false
+            // Groq shut down Llama 3.x on 16 Aug 2026: every Polish/Hinglish call was failing silently.
+            for (k in listOf("llm", "chatModel")) {
+                if (settings.optString(k) in Models.DEAD) { settings.put(k, Models.DEFAULT_LLM); changed = true }
+            }
+            if (settings.optString("stt") in Models.DEAD) { settings.put("stt", Models.DEFAULT_STT); changed = true }
+            if (settings.has("visionModel") && !Models.isVision(settings.optString("visionModel"))) {
+                settings.put("visionModel", Models.DEFAULT_VISION); changed = true
+            }
+            if (settings.optInt("schema", 0) < 3) {
+                // v2 "Hindi + roman" meant Hinglish; v2 "Hindi + as spoken" meant Devanagari.
+                if (settings.optString("lang") == "hi") {
+                    if (settings.optString("script", "roman") == "native") settings.put("deva", true)
+                    else settings.put("lang", "hinglish")
+                }
+                settings.remove("script")
+                settings.put("schema", 3)
+                changed = true
+            }
+            if (settings.optInt("schema", 0) < 4) {
+                // v4: Whisper Large v3 by default (v3 used Turbo, which mishears fast speech more often).
+                if (settings.optString("stt", Models.FAST_STT) == Models.FAST_STT) settings.put("stt", Models.DEFAULT_STT)
+                settings.put("schema", 4)
+                changed = true
+            }
+            if (changed) writeEnc("s", settings.toString())
+        }
+    }
 
     private fun readEnc(k: String): String? = sp.getString(k, null)?.let { runCatching { Crypto.decStr(it) }.getOrNull() }
     private fun writeEnc(k: String, v: String) { sp.edit().putString(k, Crypto.encStr(v)).apply() }
@@ -77,6 +112,13 @@ class Store private constructor(private val app: Context) {
             else -> false
         }
     }
+
+    /** Correct spellings from the Spellings list ("heard = correct" -> "correct"), used as Whisper vocabulary. */
+    fun vocabulary(): List<String> = str("spell").split("\n").mapNotNull { line ->
+        val i = line.indexOf('=')
+        val w = (if (i >= 0) line.substring(i + 1) else line).trim()
+        w.takeIf { it.isNotEmpty() && it.length <= 40 }
+    }.distinct()
 
     fun applySpell(text: String): String {
         var t = text
@@ -169,10 +211,13 @@ class Store private constructor(private val app: Context) {
     companion object {
         const val MAX = 40
         val DEF: Map<String, Any> = linkedMapOf<String, Any>(
-            "key" to "", "mode" to "polish", "lang" to "hi", "target" to "en", "script" to "roman",
-            "stt" to "whisper-large-v3-turbo", "llm" to "llama-3.3-70b-versatile",
+            "key" to "", "mode" to "polish", "lang" to "hinglish", "deva" to false, "target" to "en",
+            "stt" to Models.DEFAULT_STT, "llm" to Models.DEFAULT_LLM,
+            "chatModel" to Models.DEFAULT_LLM, "visionModel" to Models.DEFAULT_VISION,
+            "hold" to "panel", "explainIn" to "hinglish", "fixWrite" to true,
             "autoCopy" to true, "keepHist" to true, "sounds" to false, "spell" to "",
-            "dark" to false, "bubble" to true
+            "dark" to false, "bubble" to true,
+            "updates" to "auto"
         )
 
         @Volatile private var inst: Store? = null

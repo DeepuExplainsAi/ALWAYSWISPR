@@ -1,4 +1,4 @@
-// Wispr by Deepu Gupta. Copyright (c) 2026 Deepu Gupta. All rights reserved.
+// Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }

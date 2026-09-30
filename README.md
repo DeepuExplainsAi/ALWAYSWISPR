@@ -1,86 +1,78 @@
-https://github.com/user-attachments/assets/a8705ba2-14ce-4e0e-9d79-a0889cc28982
+# Wispr by Deepu Gupta
 
+Speak in Hinglish, Hindi, English or 25+ languages, and Wispr types it into **any app**, over **any keyboard**.
+Open source under the **Apache License 2.0**. Copyright 2026 Deepu Gupta.
 
+- **Bubble over every keyboard.** Tap the orange orb, talk, tap ✓. Text is typed where your cursor is (✕ cancels).
+- **Never deletes your notes.** Wispr only *adds* text. It never replaces what's already in Notes, Keep, Docs or Word.
+- **Hold the bubble: mini window.** Write / Polish / Translate, target language, Hindi ⇄ Hinglish, AI models, **AI chat**, **Understand screen**.
+- **Understand any screen in one tap.** Reads the text on screen in any language and explains or translates it. **Scan picture (OCR)** reads text inside images, videos and PDFs (Android 11+). Works from any app via Android's Accessibility button/shortcut.
+- **AI chat anywhere.** Type or speak; tap **Insert** to drop the answer into the box you were in.
+- **Hinglish by default.** Hindi toggle OFF = always Roman Hinglish ("kal meeting hai"). ON = Devanagari.
+- **Your own free Groq key.** Stored with Android Keystore (AES-256-GCM). No Wispr server, no account, no tracking.
 
+## Models (all on Groq's free plan, checked 30 Sep 2026)
 
-<p align="center">
-  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/download/v3.0.0/Wispr-by-Deepu-Gupta-v3.0.0.apk">
-    <img src="https://img.shields.io/badge/Download-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Wispr APK">
-  </a>
-</p>
+| Use | Model | Notes |
+| --- | --- | --- |
+| Speech | `whisper-large-v3` (default), `whisper-large-v3-turbo` | 20 req/min, 2,000/day, 8 h audio/day |
+| Polish / translate / chat | `openai/gpt-oss-120b` (default), `openai/gpt-oss-20b` | 30 req/min, 1,000/day |
+| Chat + screen OCR (vision) | `qwen/qwen3.8-27b`, `qwen/qwen3.6-27b` | Preview |
+| Chat with live web search | `groq/compound`, `groq/compound-mini` | 250/day |
 
-# Wispr by Deepu Gupta (Android)
+"Check what's live on Groq" in the mini window's **Models** tab lists every model your key can use, including new ones. Add a model permanently with one line in `Models.kt`.
 
-© 2026 Deepu Gupta. All rights reserved. See `LICENSE`.
+## Requirements
 
-Voice typing for every app, inspired by how Wispr Flow works on Android: a floating
-bubble appears whenever any keyboard opens. Tap it, speak, tap again, and your words are
-copied **and** pasted straight into the text box. Uses your own Groq API key.
+- Android **8.0 (API 26)** or newer. OCR screen scan needs Android 11+.
+- Build: AGP 9.4.0, Gradle 9.6.0, JDK 21, compileSdk/targetSdk **37**, Kotlin 2.4.10 (built into AGP 9).
 
-## Put it on GitHub and get the APK (no Android Studio needed)
+## Build and release (GitHub Actions)
 
-1. Create a new GitHub repo (can be public). Upload **everything in this folder**
-   (including the hidden `.github` folder). Do **not** upload the signing key zip.
-2. Repo → **Settings → Secrets and variables → Actions → New repository secret**, add these 4
-   (values are in `SIGNING-KEY-PRIVATE/HOW-TO-ADD-SECRETS.txt`, which you got separately):
-   - `WISPR_KEYSTORE_BASE64`
-   - `WISPR_KEYSTORE_PASSWORD`
-   - `WISPR_KEY_ALIAS`
-   - `WISPR_KEY_PASSWORD`
-3. Repo → **Releases → Draft a new release → Choose a tag** → type `v2.0.0` → Create tag → **Publish**.
-   (Or on a computer: `git tag v2.0.0 && git push origin v2.0.0`.)
-4. Open the **Actions** tab. In about 5 to 8 minutes the build finishes and
-   `Wispr-by-Deepu-Gupta-v2.0.0.apk` appears on that Release page.
-5. For updates: change code, push a new tag (`v2.0.1`, `v2.1.0`...). Always keep the SAME
-   signing key, or phones won't accept the update.
+1. **Signing key, once** (required for releases, so phones can update in place):
+   ```
+   keytool -genkeypair -v -keystore wispr.jks -alias wispr -keyalg RSA -keysize 4096 -validity 10000
+   base64 -w0 wispr.jks > wispr.jks.b64
+   ```
+   In GitHub: **Settings → Secrets and variables → Actions** add `WISPR_KEYSTORE_BASE64` (contents of `wispr.jks.b64`), `WISPR_KEYSTORE_PASSWORD`, `WISPR_KEY_ALIAS` (`wispr`), `WISPR_KEY_PASSWORD`. Back up `wispr.jks` safely: lose it and nobody can update again.
+2. **Release**: bump `wispr.version` in `gradle.properties`, write `RELEASE_NOTES.md`, then `git tag v4.1.0 && git push origin v4.1.0`. The signed APK + `SHA256SUMS.txt` land on the **Releases** page. Tags with a dash (`v4.2.0-beta.1`) become pre-releases.
+3. Test build without releasing: **Actions → Build APK and publish release → Run workflow** (APK under *Artifacts*).
 
-Build fails? Open the failed run in **Actions**, copy the red error lines and share them.
+## In-app updates
 
-## Permissions the app asks for (and why)
+Every installed Wispr checks this repo's latest GitHub Release (app open: every 6 h, keyboard bubble: every 12 h, with ETag caching and a fallback when GitHub's 60 requests/hour limit is hit). When a newer tag is out:
 
-| Permission | Why |
-|---|---|
-| Microphone | To hear you |
-| Accessibility ("Wispr bubble") | To show the bubble when a keyboard opens and type the text into the box. It does not read or save what you type. |
-| Notifications | "Listening" indicator + failure alert with a Retry button |
-| Ignore battery optimisation | So the phone doesn't kill the bubble |
+- The app shows an **update card** with the release notes and **Update now**; outside the app a notification appears.
+- **Auto** (default): it downloads on Wi-Fi, checks the SHA-256 and that the APK is the same app signed with the same key, then one tap installs it. On Android 12+ it installs without the extra Android prompt; Android 8 to 11 show the normal "Update" dialog. Settings and the Groq key stay.
+- First time only, Android asks to allow **Install unknown apps** for Wispr.
+- If an APK is signed with a different key (for example an old debug-signed build), Wispr says so and opens the GitHub page: uninstall once, install the new APK, and from then on updates work in-app.
+- The repo is baked in from `github.repository` at build time, so forks check their own Releases. Local builds: set `wispr.repo=owner/name` in `gradle.properties`.
+- **Google Play build**: set `wispr.selfUpdate=false` and remove `REQUEST_INSTALL_PACKAGES` and `UPDATE_PACKAGES_WITHOUT_USER_ACTION` from the manifest (Play doesn't allow self-updating apps).
+- Android developer verification: as of 30 Sep 2026 it's enforced only for 7 app stores in Brazil, Indonesia, Singapore and Thailand; direct GitHub APKs aren't covered yet. Google plans a global rollout in 2027, so register the package in the Android Developer Console before then.
 
-Android 13+ blocks Accessibility for apps installed from outside the Play Store until you
-allow it: **App info → ⋮ (top right) → Allow restricted settings**. The app shows this tip too.
-On Xiaomi / Redmi / POCO also turn on **Autostart**.
+## Code map
 
-## Security
+| File | What it does |
+| --- | --- |
+| `BubbleService.kt` | Accessibility service: bubble, gestures, recording, Accessibility button |
+| `BubbleView.kt` | Orange orb + ✕ / waveform / ✓ pill (Canvas) |
+| `Inserter.kt` | Safe typing into other apps (paste only, never overwrites) |
+| `Panel.kt` + `assets/web/panel.html` | Floating mini window |
+| `Assistant.kt` | AI chat, Understand screen, voice-to-chat |
+| `ScreenReader.kt` | On-screen text + screenshot for OCR |
+| `Engine.kt` | Dictation pipeline: record → Whisper → Hinglish / Polish / Translate, auto-retry |
+| `Groq.kt`, `Models.kt`, `Prompts.kt` | Groq API client, model catalog, prompts |
+| `Store.kt`, `Crypto.kt` | Encrypted settings + history |
+| `Translit.java` | Offline Hindi → Hinglish fallback |
+| `Updater.kt`, `UpdateReceiver.kt` | In-app updates from GitHub Releases: check, download, verify, install |
 
-- Groq key, settings and history are encrypted with **AES-256-GCM** using a key locked inside
-  the **Android Keystore** (it can't be copied out of the phone).
-- The app screen (WebView) never gets the key. All Groq calls happen in native code.
-- HTTPS only; user-installed certificates are not trusted (blocks MITM sniffing).
-- Content-Security-Policy blocks all network access from the web layer.
-- Backups and device-transfer are disabled. Recordings are stored encrypted until they succeed, then deleted.
-- No Wispr server, no analytics, no tracking. Each person uses their own Groq key.
+## Privacy
 
-## Reliability
+- Update checks only ask GitHub for this repo's latest release (no personal data, no key). Turn them off in Settings → Updates.
 
-- Every network step auto-retries 5 times with back-off and waits for internet to return.
-- If polishing fails, you still get the plain transcript (nothing is lost).
-- If everything fails, the encrypted audio stays saved: tap **Retry** on the orange bubble,
-  on the notification, or on the item in the app's Recent list.
-- Long dictation is fine: up to 15 minutes per recording.
+Audio, and screen text when **you** tap Understand, go only to Groq over HTTPS, using your key. Wispr never reads what you type, and it never sends your data on its own.
 
-## Bubble controls
+## License
 
-- Tap = start / stop. Hold = talk while holding, release to type.
-- Red = listening (small ✕ next to it cancels). Grey spinner = writing. Orange = failed, tap to retry.
-  Blue = couldn't paste automatically, tap the text box then the bubble.
-- Drag it anywhere; it snaps to the nearest edge and remembers the spot.
-- Hidden in password, number and phone fields, and inside Wispr itself.
-
-## Ownership
-
-"Wispr by Deepu Gupta" and the copyright notice are embedded in the app code, manifest, app
-resources, `assets/NOTICE.txt`, the About screen and the APK signing certificate
-(CN=Deepu Gupta). Anyone who unzips the APK or this source will see it.
-
-## Local build (optional)
-
-Android Studio (Koala or newer) → Open this folder → Build → Build APK(s).
+Copyright 2026 Deepu Gupta. Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE).
+Forks are welcome under the licence. Please use your own app name and icon (Apache 2.0 §6 does not grant trademark rights).
