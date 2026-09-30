@@ -26,12 +26,12 @@ android {
     namespace = "com.deepugupta.wispr"
     // Android 17 SDK (API 37). compileSdk 36 failed because the newest AndroidX libraries need 37.
     // minSdk stays 26 (Android 8.0), so the app still runs on Android 8.0 and newer.
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.deepugupta.wispr"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = System.getenv("WISPR_VERSION_CODE")?.toIntOrNull() ?: codeOf(wisprVersion)
         versionName = wisprVersion
         buildConfigField("String", "OWNER", "\"Deepu Gupta\"")
