@@ -76,10 +76,10 @@ object Engine {
                 val f = File(st.audioDir, "$id.enc")
                 if (!f.exists()) throw GroqError("Audio for this one is missing.", false)
                 val audio = Crypto.decrypt(f.readBytes())
+                val stt = st.str("stt")
                 val lang = st.str("lang")
-                val prompt = when (lang) { "hinglish" -> Prompts.HINGLISH_HINT; "hi" -> Prompts.HI_HINT; else -> null }
-                raw = withRetry(app, onStatus) { transcribeAny(st, key, audio, lang, prompt) }
-                if (raw.isBlank() || isWhisperNoise(raw)) throw NoSpeech()
+                raw = withRetry(app, onStatus) { Groq.transcribe(key, audio, stt, lang) }
+                if (raw.isBlank()) throw NoSpeech()
                 val r = raw
                 st.patchItem(id) { it.put("raw", r) }
             }
@@ -101,97 +101,53 @@ object Engine {
         }
     }
 
-    /** Whisper's classic hallucinations on silence. */
-    private fun isWhisperNoise(t: String): Boolean {
-        val x = t.trim().lowercase().trimEnd('.', '!', ' ')
-        return x in setOf("thanks for watching", "thank you for watching", "you", "subtitles by the amara.org community", "please subscribe")
-    }
-
-    /** Speech model with automatic fallback if Groq removes the chosen one. */
-    private fun transcribeAny(st: Store, key: String, audio: ByteArray, lang: String, prompt: String?): String {
-        val chosen = st.str("stt")
-        val models = listOf(chosen, Groq.DEFAULT_STT, Groq.ACCURATE_STT).distinct()
-        var last: GroqError? = null
-        for (m in models) {
-            try {
-                val t = Groq.transcribe(key, audio, m, lang, prompt)
-                if (m != chosen) st.put("stt", m)
-                return t
-            } catch (e: GroqError) {
-                if (!e.modelGone) throw e
-                last = e
-            }
-        }
-        throw last ?: GroqError("No speech model available on Groq.", false)
-    }
-
-    /** Text model with automatic fallback (Llama 3.3 was shut down on 16 Aug 2026, which silently broke Hinglish + Polish). */
-    private fun chatAny(st: Store, key: String, system: String, text: String): String {
-        val chosen = st.str("llm")
-        val models = listOf(chosen, Groq.DEFAULT_LLM, Groq.FAST_LLM).distinct()
-        var last: GroqError? = null
-        for (m in models) {
-            try {
-                val t = Groq.chat(key, m, system, text)
-                if (m != chosen) st.put("llm", m)
-                return t
-            } catch (e: GroqError) {
-                if (!e.modelGone) throw e
-                last = e
-            }
-        }
-        throw last ?: GroqError("No text model available on Groq.", false)
-    }
-
     /**
-     * Output script rules:
-     *  - "hinglish" (default, Hindi toggle OFF): output is ALWAYS Roman letters. Groq model first; if the result still
-     *    has Hindi/Urdu script, a second pass; if Groq fails completely, the offline [Translit] converter. 100% no Devanagari.
-     *  - "hi" (Hindi toggle ON): Devanagari as spoken (Urdu script is fixed to Devanagari).
-     *  - "auto": any language as spoken; Hindi/Urdu script is romanised unless the Hindi toggle is ON.
-     *  - other languages: their own script.
-     *  - Translate mode: target language's script ("Hinglish" target = Roman).
+     * True for a character in Devanagari, another major Indic script, or Arabic/Urdu/Sindhi —
+     * i.e. a script that compulsory-Hinglish must romanise. Ordinary Latin text, including
+     * accented loanwords or typographic punctuation (smart quotes, dashes, ellipsis), is Latin
+     * script and returns false, so it is never sent through a needless extra API call.
      */
+    private fun isNonLatinScript(c: Char): Boolean {
+        val cp = c.code
+        return (cp in 0x0900..0x097F) || // Devanagari (Hindi, Marathi, Nepali, Sanskrit)
+            (cp in 0x0980..0x09FF) || // Bengali / Assamese
+            (cp in 0x0A00..0x0A7F) || // Gurmukhi (Punjabi)
+            (cp in 0x0A80..0x0AFF) || // Gujarati
+            (cp in 0x0B00..0x0B7F) || // Oriya
+            (cp in 0x0B80..0x0BFF) || // Tamil
+            (cp in 0x0C00..0x0C7F) || // Telugu
+            (cp in 0x0C80..0x0CFF) || // Kannada
+            (cp in 0x0D00..0x0D7F) || // Malayalam
+            (cp in 0x0D80..0x0DFF) || // Sinhala
+            (cp in 0x0600..0x06FF) || // Arabic (also used for Urdu, Sindhi)
+            (cp in 0x0750..0x077F) || // Arabic Supplement
+            (cp in 0x08A0..0x08FF)    // Arabic Extended-A
+    }
+
+    /** Polish / translate / romanise. If that step fails, the plain transcript is still delivered. */
     private fun shape(app: Context, st: Store, key: String, raw: String, onStatus: (String) -> Unit): String {
         val mode = st.str("mode")
-        val lang = st.str("lang")
-        val deva = st.bool("deva")
-        if (mode == "translate") {
-            val target = st.str("target")
-            val t = try { withRetry(app, onStatus) { chatAny(st, key, Prompts.translate(target), raw) } } catch (e: GroqError) { raw }
-            return if (target == "hinglish") forceRoman(app, st, key, t, onStatus) else t
-        }
-        val roman = lang == "hinglish" || ((lang == "auto" || lang == "en") && !deva)
-        if (roman) {
-            val needs = Translit.hasNonLatinIndic(raw)
-            val first = try {
-                when {
-                    mode == "polish" -> withRetry(app, onStatus) { chatAny(st, key, Prompts.POLISH_HINGLISH, raw) }
-                    needs -> withRetry(app, onStatus) { chatAny(st, key, Prompts.ROMAN, raw) }
-                    else -> raw
-                }
-            } catch (e: GroqError) { raw }
-            return forceRoman(app, st, key, first, onStatus)
-        }
-        var t = try {
-            when {
-                mode != "polish" -> raw
-                lang == "hi" -> withRetry(app, onStatus) { chatAny(st, key, Prompts.POLISH_NATIVE, raw) }
-                else -> withRetry(app, onStatus) { chatAny(st, key, Prompts.POLISH, raw) }
+        val llm = st.str("llm")
+        return try {
+            var t = when (mode) {
+                "polish" -> withRetry(app, onStatus) { Groq.chat(key, llm, Prompts.POLISH, raw) }
+                "translate" -> withRetry(app, onStatus) { Groq.chat(key, llm, Prompts.translate(Prompts.langName(st.str("target"))), raw) }
+                else -> raw
             }
-        } catch (e: GroqError) { raw }
-        if (lang == "hi" && Translit.hasArabic(t)) {
-            val src = t
-            t = try { withRetry(app, onStatus) { chatAny(st, key, Prompts.TO_DEVANAGARI, src) } } catch (e: GroqError) { src }
+            // Hinglish output is compulsory: write/polish text is ALWAYS forced to Roman letters, no matter
+            // what language was spoken or auto-detected, and no matter what the transcription model returns.
+            // Only a real non-Latin script (Devanagari, other Indic scripts, Arabic/Urdu) triggers the
+            // romanisation pass, so ordinary Latin text (English, or already-typed Hinglish, incl. typographic
+            // punctuation like smart quotes/dashes) is never sent through an unnecessary extra call.
+            // Translate mode is the one exception: it must keep the target language's own native script.
+            if (mode != "translate" && t.any { isNonLatinScript(it) }) {
+                val src = t
+                t = withRetry(app, onStatus) { Groq.chat(key, llm, Prompts.ROMAN, src) }
+            }
+            t
+        } catch (e: GroqError) {
+            raw
         }
-        return t
-    }
-
-    /** Guarantees Latin-only output: second Groq pass, then the offline converter. */
-    private fun forceRoman(app: Context, st: Store, key: String, text: String, onStatus: (String) -> Unit): String {
-        if (!Translit.hasNonLatinIndic(text)) return text
-        val second = try { withRetry(app, onStatus) { chatAny(st, key, Prompts.ROMAN, text) } } catch (e: GroqError) { text }
-        return if (Translit.hasNonLatinIndic(second)) Translit.toRoman(second) else second
     }
 
     private fun <T> withRetry(app: Context, onStatus: (String) -> Unit, block: () -> T): T {

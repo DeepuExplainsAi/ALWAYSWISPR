@@ -24,28 +24,6 @@ class Store private constructor(private val app: Context) {
     private val settings: JSONObject = readEnc("s")?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()
     private var history: JSONArray = readEnc("h")?.let { runCatching { JSONArray(it) }.getOrNull() } ?: JSONArray()
 
-    init { migrate() }
-
-    /** One-time fixes for settings saved by older versions. */
-    private fun migrate() {
-        synchronized(lock) {
-            var changed = false
-            // Groq shut down Llama 3.x on 16 Aug 2026: every Polish/Hinglish call was failing silently.
-            if (settings.optString("llm") in Groq.DEAD_LLMS) { settings.put("llm", Groq.DEFAULT_LLM); changed = true }
-            if (settings.optInt("schema", 0) < 3) {
-                // v2 "Hindi + roman" meant Hinglish; v2 "Hindi + as spoken" meant Devanagari.
-                if (settings.optString("lang") == "hi") {
-                    if (settings.optString("script", "roman") == "native") settings.put("deva", true)
-                    else settings.put("lang", "hinglish")
-                }
-                settings.remove("script")
-                settings.put("schema", 3)
-                changed = true
-            }
-            if (changed) writeEnc("s", settings.toString())
-        }
-    }
-
     private fun readEnc(k: String): String? = sp.getString(k, null)?.let { runCatching { Crypto.decStr(it) }.getOrNull() }
     private fun writeEnc(k: String, v: String) { sp.edit().putString(k, Crypto.encStr(v)).apply() }
 
@@ -191,8 +169,8 @@ class Store private constructor(private val app: Context) {
     companion object {
         const val MAX = 40
         val DEF: Map<String, Any> = linkedMapOf<String, Any>(
-            "key" to "", "mode" to "polish", "lang" to "hinglish", "deva" to false, "target" to "en",
-            "stt" to Groq.DEFAULT_STT, "llm" to Groq.DEFAULT_LLM,
+            "key" to "", "mode" to "polish", "lang" to "hi", "target" to "en", "script" to "roman",
+            "stt" to "whisper-large-v3-turbo", "llm" to "llama-3.3-70b-versatile",
             "autoCopy" to true, "keepHist" to true, "sounds" to false, "spell" to "",
             "dark" to false, "bubble" to true
         )

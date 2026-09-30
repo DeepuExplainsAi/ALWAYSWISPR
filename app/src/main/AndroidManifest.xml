@@ -19,7 +19,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Wispr">
 
         <meta-data android:name="com.deepugupta.wispr.OWNER" android:value="Deepu Gupta" />

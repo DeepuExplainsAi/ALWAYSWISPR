@@ -13,21 +13,9 @@ https://github.com/user-attachments/assets/a8705ba2-14ce-4e0e-9d79-a0889cc28982
 
 © 2026 Deepu Gupta. All rights reserved. See `LICENSE`.
 
-Voice typing for every app, built the way Wispr Flow works on Android: a glowing orange orb
-appears whenever any keyboard opens. Tap it, speak, tap **✓** and your words are typed straight
-into the box you tapped (and copied too). Speaks **Hinglish** properly: you talk Hindi, it writes
-Roman letters ("kal meeting hai"). Uses your own Groq API key.
-
-## Languages
-
-- **Hinglish (Roman Hindi)**: the default. Always Roman letters, never Devanagari. Works with just
-  a Groq key: Whisper hears Hindi, a Groq text model writes it in Roman letters, and a built-in
-  offline converter makes sure no Devanagari ever slips through.
-- **Hindi (Devanagari)**: turn on *Settings → Hindi script* (or pick हिन्दी in "I speak").
-- **Hindi script toggle OFF** = Hinglish, always.
-- **Auto detect**: any of the 26 languages, each in its own script (Hindi comes out as Hinglish
-  unless the Hindi script toggle is on).
-- **Translate** mode can also write *into* Hinglish.
+Voice typing for every app, inspired by how Wispr Flow works on Android: a floating
+bubble appears whenever any keyboard opens. Tap it, speak, tap again, and your words are
+copied **and** pasted straight into the text box. Uses your own Groq API key.
 
 ## Put it on GitHub and get the APK (no Android Studio needed)
 
@@ -39,11 +27,11 @@ Roman letters ("kal meeting hai"). Uses your own Groq API key.
    - `WISPR_KEYSTORE_PASSWORD`
    - `WISPR_KEY_ALIAS`
    - `WISPR_KEY_PASSWORD`
-3. Repo → **Releases → Draft a new release → Choose a tag** → type `v3.0.0` → Create tag → **Publish**.
-   (Or on a computer: `git tag v3.0.0 && git push origin v3.0.0`.)
+3. Repo → **Releases → Draft a new release → Choose a tag** → type `v2.0.0` → Create tag → **Publish**.
+   (Or on a computer: `git tag v2.0.0 && git push origin v2.0.0`.)
 4. Open the **Actions** tab. In about 5 to 8 minutes the build finishes and
-   `Wispr-by-Deepu-Gupta-v3.0.0.apk` appears on that Release page.
-5. For updates: change code, push a new tag (`v3.0.1`, `v3.1.0`...). Always keep the SAME
+   `Wispr-by-Deepu-Gupta-v2.0.0.apk` appears on that Release page.
+5. For updates: change code, push a new tag (`v2.0.1`, `v2.1.0`...). Always keep the SAME
    signing key, or phones won't accept the update.
 
 Build fails? Open the failed run in **Actions**, copy the red error lines and share them.
@@ -81,11 +69,9 @@ On Xiaomi / Redmi / POCO also turn on **Autostart**.
 
 ## Bubble controls
 
-- Tap the orb: it opens into a pill **[ ✕ | live waveform | ✓ ]**. ✓ = type it in, ✕ = cancel.
-- Hold the orb = talk while holding, let go to type (slide onto ✕ before letting go to cancel).
-- Orb spins an orange ring while writing. A small badge means: ↻ failed (tap to retry) or
-  paste (couldn't type automatically; tap the text box, then the orb, or long-press and paste).
-- Text is inserted the Flow way: into the field you tapped, retried 3 times, then copied as a fallback.
+- Tap = start / stop. Hold = talk while holding, release to type.
+- Red = listening (small ✕ next to it cancels). Grey spinner = writing. Orange = failed, tap to retry.
+  Blue = couldn't paste automatically, tap the text box then the bubble.
 - Drag it anywhere; it snaps to the nearest edge and remembers the spot.
 - Hidden in password, number and phone fields, and inside Wispr itself.
 
@@ -95,13 +81,6 @@ On Xiaomi / Redmi / POCO also turn on **Autostart**.
 resources, `assets/NOTICE.txt`, the About screen and the APK signing certificate
 (CN=Deepu Gupta). Anyone who unzips the APK or this source will see it.
 
-## Build setup (latest as of Sep 2026)
-
-Android Gradle Plugin 9.4.1 (built-in Kotlin, Kotlin 2.4.10) · Gradle 9.6.0 · JDK 21 on CI ·
-compileSdk / targetSdk 36 · minSdk 26 (Android 8) · OkHttp 5.5.0 · AndroidX WebKit 1.17.1.
-Groq models: whisper-large-v3-turbo (speech) and openai/gpt-oss-120b (text). The old Llama 3.x
-models were shut down by Groq on 16 Aug 2026; old installs are moved over automatically.
-
 ## Local build (optional)
 
-Android Studio (latest) → Open this folder → Build → Build APK(s).
+Android Studio (Koala or newer) → Open this folder → Build → Build APK(s).

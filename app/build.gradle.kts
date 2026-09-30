@@ -1,7 +1,7 @@
 // Wispr by Deepu Gupta. Copyright (c) 2026 Deepu Gupta. All rights reserved.
-// AGP 9: Kotlin is built in, so there is no "org.jetbrains.kotlin.android" plugin and no kotlinOptions block.
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
 }
 
 // Release signing comes from environment variables (GitHub Secrets). Never commit the keystore.
@@ -9,14 +9,14 @@ val ksFile: File? = System.getenv("WISPR_KEYSTORE")?.let { file(it) }?.takeIf { 
 
 android {
     namespace = "com.deepugupta.wispr"
-    compileSdk = 37
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.deepugupta.wispr"
         minSdk = 26
-        targetSdk = 36
-        versionCode = (System.getenv("WISPR_VERSION_CODE") ?: "300").toInt()
-        versionName = System.getenv("WISPR_VERSION_NAME") ?: "3.0.0"
+        targetSdk = 34
+        versionCode = (System.getenv("WISPR_VERSION_CODE") ?: "310").toInt()
+        versionName = System.getenv("WISPR_VERSION_NAME") ?: "3.1.0"
         buildConfigField("String", "OWNER", "\"Deepu Gupta\"")
         buildConfigField("String", "COPYRIGHT", "\"Copyright (c) 2026 Deepu Gupta. All rights reserved.\"")
     }
@@ -45,6 +45,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    kotlinOptions { jvmTarget = "17" }
     buildFeatures { buildConfig = true }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
     lint {
@@ -54,6 +55,6 @@ android {
 }
 
 dependencies {
-    implementation("androidx.webkit:webkit:1.17.1")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("androidx.webkit:webkit:1.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

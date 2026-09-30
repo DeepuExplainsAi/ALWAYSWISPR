@@ -10,8 +10,11 @@ import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -24,19 +27,26 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.Toast
 
 /**
- * The Wispr bubble, modelled on how Wispr Flow works on Android:
- *  - an orange orb floats above ANY keyboard whenever a text box is focused;
- *  - tap it (or hold = push-to-talk) -> it opens into  [X]  [waveform]  [✓];
- *  - ✓ stops, Groq writes it, and the text is typed into the box you were in (retries 3x like Flow);
- *  - if an app refuses insertion, the text is on the clipboard and the orb shows a Paste badge.
+ * The Wispr bubble. Works with ANY keyboard (Gboard, SwiftKey, Samsung...):
+ * it appears when a keyboard opens, tap = start/stop, hold = push-to-talk.
+ * The spoken text is copied AND pasted straight into the text box you were typing in.
  */
 class BubbleService : AccessibilityService() {
 
     companion object {
         @Volatile var instance: BubbleService? = null
+        private val C_IDLE = 0xFFE0492F.toInt()
+        private val C_REC = 0xFFD92D20.toInt()
+        private val C_WORK = 0xFF55534D.toInt()
+        private val C_RETRY = 0xFFD97706.toInt()
+        private val C_PASTE = 0xFF2563EB.toInt()
     }
 
     private enum class St { IDLE, REC, WORK, RETRY, PASTE }
@@ -45,12 +55,17 @@ class BubbleService : AccessibilityService() {
     private lateinit var wm: WindowManager
     private lateinit var store: Store
     private lateinit var recorder: Recorder
-    private var view: BubbleView? = null
+    private var root: LinearLayout? = null
+    private lateinit var bubble: FrameLayout
+    private lateinit var ring: PulseRingView
+    private lateinit var icon: ImageView
+    private lateinit var spinner: ProgressBar
+    private lateinit var cancelBtn: ImageView
+    private lateinit var bg: GradientDrawable
     private val lp = WindowManager.LayoutParams()
     private var shown = false
     private var st = St.IDLE
     private var target: AccessibilityNodeInfo? = null
-    private var targetPkg: String? = null
     private var failedId: String? = null
     private var pasteText: String? = null
     private var imeTop = 0
@@ -58,7 +73,6 @@ class BubbleService : AccessibilityService() {
     private var rightSide = true
     private var hold = false
     private var dragging = false
-    private var downZone = BubbleView.Zone.ORB
     private var downX = 0f
     private var downY = 0f
     private var startX = 0
@@ -82,34 +96,62 @@ class BubbleService : AccessibilityService() {
     private fun dp(v: Float): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
 
     private fun buildViews() {
-        view = BubbleView(this).apply { setOnTouchListener(touch) }
+        val size = dp(52f)
+        bg = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(C_IDLE)
+            setStroke(dp(2f), 0x40FFFFFF)
+        }
+        icon = ImageView(this).apply {
+            setImageResource(R.drawable.ic_b_mic)
+            setColorFilter(Color.WHITE)
+        }
+        spinner = ProgressBar(this).apply {
+            isIndeterminate = true
+            visibility = View.GONE
+            indeterminateTintList = ColorStateList.valueOf(Color.WHITE)
+        }
+        bubble = FrameLayout(this).apply {
+            background = bg
+            elevation = dp(6f).toFloat()
+            contentDescription = "Start Wispr dictation"
+            addView(icon, FrameLayout.LayoutParams(dp(26f), dp(26f), Gravity.CENTER))
+            addView(spinner, FrameLayout.LayoutParams(dp(28f), dp(28f), Gravity.CENTER))
+        }
+        ring = PulseRingView(this)
+        val stageSize = dp(96f)
+        val stage = FrameLayout(this).apply {
+            addView(ring, FrameLayout.LayoutParams(stageSize, stageSize))
+            addView(bubble, FrameLayout.LayoutParams(size, size, Gravity.CENTER))
+        }
+        cancelBtn = ImageView(this).apply {
+            setImageResource(R.drawable.ic_b_close)
+            setColorFilter(Color.WHITE)
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xE6333333.toInt()) }
+            setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
+            visibility = View.GONE
+            contentDescription = "Cancel"
+            setOnClickListener { cancelRec() }
+        }
+        root = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+            addView(cancelBtn, LinearLayout.LayoutParams(dp(34f), dp(34f)).apply { marginEnd = dp(8f) })
+            addView(stage, LinearLayout.LayoutParams(stageSize, stageSize))
+        }
         lp.width = WindowManager.LayoutParams.WRAP_CONTENT
         lp.height = WindowManager.LayoutParams.WRAP_CONTENT
         lp.type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-        // Never take focus: the app's text box keeps its cursor, so we can type into it.
         lp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
         lp.format = PixelFormat.TRANSLUCENT
-        placeSide()
-        lp.y = 0
-    }
-
-    private var centred = false
-
-    private fun placeSide() {
-        centred = false
         lp.gravity = Gravity.TOP or (if (rightSide) Gravity.END else Gravity.START)
-        lp.x = dp(6f)
+        lp.x = dp(8f)
+        lp.y = 0
+        bubble.setOnTouchListener(touch)
     }
-
-    private fun placeCentre() {
-        centred = true
-        lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        lp.x = 0
-    }
-
-    private fun relayout() { view?.let { v -> if (shown) runCatching { wm.updateViewLayout(v, lp) } } }
 
     // ---------- gestures ----------
     private val holdRun = Runnable {
@@ -122,35 +164,32 @@ class BubbleService : AccessibilityService() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private val touch = View.OnTouchListener { v, e ->
-        val bv = v as BubbleView
+    private val touch = View.OnTouchListener { _, e ->
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = e.rawX; downY = e.rawY; startX = lp.x; startY = lp.y
                 dragging = false; hold = false
-                downZone = bv.zoneAt(e.x)
-                if (st != St.REC && st != St.WORK) h.postDelayed(holdRun, 420)
+                h.postDelayed(holdRun, 450)
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = e.rawX - downX
                 val dy = e.rawY - downY
-                if (!dragging && !hold && st != St.REC && Math.hypot(dx.toDouble(), dy.toDouble()) > dp(10f)) {
+                if (!dragging && !hold && Math.hypot(dx.toDouble(), dy.toDouble()) > dp(10f)) {
                     dragging = true
                     h.removeCallbacks(holdRun)
                 }
                 if (dragging) {
                     lp.x = if (rightSide) startX - dx.toInt() else startX + dx.toInt()
                     lp.y = startY + dy.toInt()
-                    relayout()
+                    root?.let { v -> runCatching { wm.updateViewLayout(v, lp) } }
                 }
             }
             MotionEvent.ACTION_UP -> {
                 h.removeCallbacks(holdRun)
                 when {
-                    // push-to-talk: release = type it; release over X = cancel
-                    hold -> { hold = false; if (bv.zoneAt(e.x) == BubbleView.Zone.CANCEL) cancelRec() else stopRec() }
+                    hold -> { hold = false; stopRec() }
                     dragging -> { dragging = false; snap() }
-                    else -> tap(downZone)
+                    else -> tap()
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
@@ -162,14 +201,10 @@ class BubbleService : AccessibilityService() {
         true
     }
 
-    private fun tap(zone: BubbleView.Zone) {
+    private fun tap() {
         when (st) {
             St.IDLE -> startRec()
-            St.REC -> when (zone) {
-                BubbleView.Zone.CANCEL -> cancelRec()
-                BubbleView.Zone.DONE -> stopRec()
-                else -> {} // like Flow: the waveform itself does nothing
-            }
+            St.REC -> stopRec()
             St.WORK -> toast("Writing it down…")
             St.RETRY -> failedId?.let { retryItem(it) }
             St.PASTE -> pasteAgain()
@@ -178,13 +213,14 @@ class BubbleService : AccessibilityService() {
 
     private fun snap() {
         val sw = screenW()
-        val w = view?.width ?: 0
+        val w = root?.width ?: 0
         val left = if (rightSide) sw - lp.x - w else lp.x
         rightSide = left + w / 2 > sw / 2
-        placeSide()
+        lp.gravity = Gravity.TOP or (if (rightSide) Gravity.END else Gravity.START)
+        lp.x = dp(8f)
         yOff = lp.y - imeTop
         getSharedPreferences("bubble_pos", MODE_PRIVATE).edit().putBoolean("right", rightSide).putInt("yoff", yOff).apply()
-        relayout()
+        root?.let { v -> runCatching { wm.updateViewLayout(v, lp) } }
     }
 
     // ---------- when to show ----------
@@ -199,12 +235,9 @@ class BubbleService : AccessibilityService() {
 
     fun refresh() { h.post(evalRun) }
 
-    private fun imeWindow(): AccessibilityWindowInfo? =
-        try { windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD } } catch (e: Exception) { null }
-
     private fun evaluate() {
-        if (view == null) return
-        val ime = imeWindow()
+        if (root == null) return
+        val ime = try { windows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD } } catch (e: Exception) { null }
         if (ime != null) {
             val r = Rect()
             ime.getBoundsInScreen(r)
@@ -212,11 +245,11 @@ class BubbleService : AccessibilityService() {
         }
         if (st == St.REC || st == St.WORK || st == St.RETRY) { show(); return }
         if (!store.bool("bubble") || ime == null) {
-            if (st == St.PASTE && ime == null) { /* keep Paste visible until it times out */ show(); return }
+            if (st == St.PASTE) { pasteText = null; setState(St.IDLE) }
             hide()
             return
         }
-        val focus = focusedEditable()
+        val focus = try { findFocus(AccessibilityNodeInfo.FOCUS_INPUT) } catch (e: Exception) { null }
         if (focus != null && (focus.packageName?.toString() == packageName || focus.isPassword || numeric(focus))) { hide(); return }
         if (focus == null && rootInActiveWindow?.packageName?.toString() == packageName) { hide(); return }
         show()
@@ -231,22 +264,22 @@ class BubbleService : AccessibilityService() {
     private fun screenH(): Int = if (Build.VERSION.SDK_INT >= 30) wm.currentWindowMetrics.bounds.height() else resources.displayMetrics.heightPixels
 
     private fun show() {
-        val v = view ?: return
+        val v = root ?: return
         if (!dragging) {
-            val size = dp(68f)
+            val size = dp(64f)
             val base = if (imeTop > 0) imeTop else screenH() - dp(320f)
-            val off = if (yOff == Int.MIN_VALUE || st == St.REC) -size - dp(6f) else yOff
+            val off = if (yOff == Int.MIN_VALUE) -size - dp(8f) else yOff
             lp.y = (base + off).coerceIn(dp(40f), maxOf(dp(40f), screenH() - size))
         }
         if (!shown) {
             try { wm.addView(v, lp); shown = true } catch (e: Exception) { /* overlay not ready yet */ }
         } else if (!dragging) {
-            relayout()
+            runCatching { wm.updateViewLayout(v, lp) }
         }
     }
 
     private fun hide() {
-        val v = view ?: return
+        val v = root ?: return
         if (shown) {
             runCatching { wm.removeView(v) }
             shown = false
@@ -254,19 +287,46 @@ class BubbleService : AccessibilityService() {
     }
 
     // ---------- recording ----------
+    private var pulseAnim: android.animation.ValueAnimator? = null
+
+    /** Smooth breathing pulse while recording: gently scales up, fades a touch, and lifts like a beat. */
+    private fun startPulse() {
+        stopPulse()
+        val a = android.animation.ValueAnimator.ofFloat(0f, 1f)
+        a.duration = 620
+        a.repeatCount = android.animation.ValueAnimator.INFINITE
+        a.repeatMode = android.animation.ValueAnimator.REVERSE
+        a.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+        a.addUpdateListener { anim ->
+            val f = anim.animatedValue as Float
+            val sc = 1f + 0.14f * f
+            bubble.scaleX = sc
+            bubble.scaleY = sc
+            bubble.alpha = 1f - 0.30f * f
+            bubble.translationY = -dp(4f) * f
+        }
+        a.start()
+        pulseAnim = a
+    }
+
+    private fun stopPulse() {
+        pulseAnim?.cancel()
+        pulseAnim = null
+    }
+
     private val levelRun = object : Runnable {
         override fun run() {
             if (st != St.REC) return
-            view?.pushLevel(recorder.level())
-            h.postDelayed(this, 50)
+            ring.setLevel(recorder.level())
+            h.postDelayed(this, 70)
         }
     }
     private val maxRun = Runnable { stopRec() }
 
     private fun startRec() {
-        if (!Perms.mic(this)) { hold = false; toast("Allow the microphone for Wispr first"); openApp("mic"); return }
-        if (store.apiKey.isBlank()) { hold = false; toast("Open Wispr and add your Groq key first"); openApp(null); return }
-        rememberTarget()
+        if (!Perms.mic(this)) { toast("Allow the microphone for Wispr first"); openApp("mic"); return }
+        if (store.apiKey.isBlank()) { toast("Open Wispr and add your Groq key first"); openApp(null); return }
+        target = try { findFocus(AccessibilityNodeInfo.FOCUS_INPUT) } catch (e: Exception) { null }
         goForeground()
         if (!recorder.start()) {
             stopFg()
@@ -276,18 +336,26 @@ class BubbleService : AccessibilityService() {
         }
         Beep.play(this, true)
         setState(St.REC)
+        startPulse()
+        ring.start()
         h.post(levelRun)
         h.postDelayed(maxRun, 15 * 60 * 1000L)
     }
 
-    private fun stopTimers() {
+    private fun resetScale() {
+        stopPulse()
+        ring.stop()
         h.removeCallbacks(levelRun)
         h.removeCallbacks(maxRun)
+        bubble.scaleX = 1f
+        bubble.scaleY = 1f
+        bubble.alpha = 1f
+        bubble.translationY = 0f
     }
 
     private fun stopRec() {
         if (st != St.REC) return
-        stopTimers()
+        resetScale()
         val f = recorder.stop()
         stopFg()
         Beep.play(this, false)
@@ -303,7 +371,7 @@ class BubbleService : AccessibilityService() {
 
     private fun cancelRec() {
         if (st != St.REC) return
-        stopTimers()
+        resetScale()
         recorder.cancel()
         stopFg()
         setState(St.IDLE)
@@ -339,40 +407,47 @@ class BubbleService : AccessibilityService() {
         }
     }
 
-    // ---------- typing it in (Flow-style: find the box right before inserting, verify, retry 3x) ----------
+    // ---------- typing it in ----------
     private fun deliver(text: String) {
-        Clip.copy(this, text) // always on the clipboard too, so nothing is ever lost
-        tryInsert(text, 0)
+        Clip.copy(this, text)
+        if (insert(text)) {
+            setState(St.IDLE)
+            evaluate()
+        } else {
+            pasteText = text
+            setState(St.PASTE)
+            show()
+            toast("Copied. Tap the text box, then tap the bubble to paste")
+            h.postDelayed({ if (st == St.PASTE) { pasteText = null; setState(St.IDLE); evaluate() } }, 12000)
+        }
     }
 
-    private fun tryInsert(text: String, attempt: Int) {
-        val node = findTarget()
-        if (node == null) {
-            if (attempt < 3) { h.postDelayed({ tryInsert(text, attempt + 1) }, 250L * (attempt + 1)); return }
-            fallbackPaste(text); return
+    private fun pasteAgain() {
+        val t = pasteText ?: return
+        if (insert(t)) {
+            pasteText = null
+            setState(St.IDLE)
+            evaluate()
+        } else {
+            toast("Tap the text box first, then tap the bubble")
         }
-        val before = readText(node)
-        val (s, e) = selection(node, before)
-        val pad = if (before != null && s > 0 && !before[s - 1].isWhitespace()) " " else ""
+    }
+
+    private fun editable(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? = n?.takeIf { it.isEditable && it.isEnabled }
+
+    /** Copy + paste at the cursor (like Wispr Flow). Falls back to setting the text directly. */
+    private fun insert(text: String): Boolean {
+        val focused = try { findFocus(AccessibilityNodeInfo.FOCUS_INPUT) } catch (e: Exception) { null }
+        val node = editable(focused) ?: editable(target?.takeIf { runCatching { it.refresh() }.getOrDefault(false) }) ?: return false
+        val cur = if (Build.VERSION.SDK_INT >= 26 && node.isShowingHintText) "" else node.text?.toString().orEmpty()
+        var s = node.textSelectionStart
+        if (s < 0 || s > cur.length) s = cur.length
+        var e = node.textSelectionEnd
+        if (e < s || e > cur.length) e = s
+        val pad = if (s > 0 && !cur[s - 1].isWhitespace()) " " else ""
         val piece = pad + text
         Clip.copy(this, piece)
-        val pasted = node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
-        h.postDelayed({
-            val after = readText(node.also { runCatching { it.refresh() } })
-            val changed = after != null && after != before && after.contains(text.take(24))
-            val unreadable = before == null && after == null
-            when {
-                changed -> done(text)
-                pasted && unreadable -> done(text)            // app hides its text (some WebViews): trust the paste
-                setTextFallback(node, before, s, e, piece) -> done(text)
-                attempt < 3 -> h.postDelayed({ tryInsert(text, attempt + 1) }, 250L * (attempt + 1))
-                else -> fallbackPaste(text)
-            }
-        }, 160)
-    }
-
-    private fun setTextFallback(node: AccessibilityNodeInfo, before: String?, s: Int, e: Int, piece: String): Boolean {
-        val cur = before ?: return false
+        if (node.performAction(AccessibilityNodeInfo.ACTION_PASTE)) return true
         val nt = cur.substring(0, s) + piece + cur.substring(e)
         val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, nt) }
         if (!node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) return false
@@ -384,93 +459,26 @@ class BubbleService : AccessibilityService() {
         return true
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun done(text: String) {
-        pasteText = null
-        setState(St.IDLE)
-        evaluate()
-    }
-
-    private fun fallbackPaste(text: String) {
-        pasteText = text
-        setState(St.PASTE)
-        show()
-        toast("Copied. Tap the text box, then tap the bubble to paste (or long-press → Paste)")
-        h.postDelayed({ if (st == St.PASTE && pasteText == text) { pasteText = null; setState(St.IDLE); evaluate() } }, 15000)
-    }
-
-    private fun pasteAgain() {
-        val t = pasteText ?: return
-        if (findTarget() == null) { toast("Tap the text box first, then tap the bubble"); return }
-        tryInsert(t, 3)
-    }
-
-    /** Text currently in the box; "" if it only shows its placeholder; null if the app hides it. */
-    private fun readText(n: AccessibilityNodeInfo): String? {
-        if (Build.VERSION.SDK_INT >= 26 && n.isShowingHintText) return ""
-        val t = n.text?.toString() ?: return null
-        val hint = if (Build.VERSION.SDK_INT >= 26) n.hintText?.toString() else null
-        return if (hint != null && t == hint) "" else t
-    }
-
-    private fun selection(n: AccessibilityNodeInfo, cur: String?): Pair<Int, Int> {
-        val len = cur?.length ?: 0
-        var s = n.textSelectionStart
-        if (s < 0 || s > len) s = len
-        var e = n.textSelectionEnd
-        if (e < s || e > len) e = s
-        return s to e
-    }
-
-    private fun editable(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? = n?.takeIf { it.isEditable && it.isEnabled && !it.isPassword }
-
-    /** Remember the box the user was typing in when recording started. */
-    private fun rememberTarget() {
-        val n = focusedEditable()
-        target = n
-        targetPkg = n?.packageName?.toString()
-    }
-
-    /** Focused text box, searched across every window (keyboard overlays can hide it from rootInActiveWindow). */
-    private fun focusedEditable(): AccessibilityNodeInfo? {
-        editable(runCatching { findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull())?.let { return it }
-        val ws = runCatching { windows }.getOrNull() ?: return null
-        for (w in ws) {
-            if (w.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD || w.type == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) continue
-            val root = runCatching { w.root }.getOrNull() ?: continue
-            editable(runCatching { root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull())?.let { return it }
-        }
-        return null
-    }
-
-    /** The box to type into right now: the focused one, else the one remembered at start (same app only). */
-    private fun findTarget(): AccessibilityNodeInfo? {
-        val f = focusedEditable()
-        if (f != null) {
-            if (f.packageName?.toString() == packageName) return null
-            return f
-        }
-        val t = target ?: return null
-        val alive = runCatching { t.refresh() }.getOrDefault(false)
-        return if (alive && editable(t) != null && t.packageName?.toString() == targetPkg) t else null
-    }
-
     // ---------- look ----------
     private fun setState(s: St) {
         st = s
-        val v = view ?: return
-        val before = lp.gravity
-        if (s == St.REC) placeCentre() else if (centred) placeSide()
-        v.setMode(
-            when (s) {
-                St.IDLE -> BubbleView.Mode.IDLE
-                St.REC -> BubbleView.Mode.REC
-                St.WORK -> BubbleView.Mode.WORK
-                St.RETRY -> BubbleView.Mode.RETRY
-                St.PASTE -> BubbleView.Mode.PASTE
-            }
-        )
-        if (before != lp.gravity) relayout()
+        spinner.visibility = if (s == St.WORK) View.VISIBLE else View.GONE
+        icon.visibility = if (s == St.WORK) View.GONE else View.VISIBLE
+        cancelBtn.visibility = if (s == St.REC) View.VISIBLE else View.GONE
+        when (s) {
+            St.IDLE -> { bg.setColor(C_IDLE); icon.setImageResource(R.drawable.ic_b_mic) }
+            St.REC -> { bg.setColor(C_REC); icon.setImageResource(R.drawable.ic_b_stop) }
+            St.WORK -> bg.setColor(C_WORK)
+            St.RETRY -> { bg.setColor(C_RETRY); icon.setImageResource(R.drawable.ic_b_retry) }
+            St.PASTE -> { bg.setColor(C_PASTE); icon.setImageResource(R.drawable.ic_b_paste) }
+        }
+        bubble.contentDescription = when (s) {
+            St.IDLE -> "Start Wispr dictation"
+            St.REC -> "Stop and type it in"
+            St.WORK -> "Writing"
+            St.RETRY -> "Retry dictation"
+            St.PASTE -> "Paste text"
+        }
     }
 
     // ---------- helpers ----------
