@@ -1,5 +1,19 @@
 # Wispr by Deepu Gupta
 
+
+
+
+https://github.com/user-attachments/assets/a830ca98-6e18-4123-a721-9fabcec612f3
+
+
+
+<p align="center">
+  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest/download/Wispr-by-Deepu-Gupta-v4.1.0-build.19.apk">
+    <img src="https://img.shields.io/badge/Download-Latest%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Wispr APK">
+  </a>
+</p>
+
+
 Speak in Hinglish, Hindi, English or 25+ languages, and Wispr types it into **any app**, over **any keyboard**.
 Open source under the **Apache License 2.0**. Copyright 2026 Deepu Gupta.
 
