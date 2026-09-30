@@ -6,7 +6,6 @@
  */
 package com.deepugupta.wispr
 
-import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
 import android.app.Service
@@ -55,7 +54,6 @@ class BubbleService : AccessibilityService() {
     private var st = St.IDLE
     private lateinit var inserter: Inserter
     private lateinit var panel: Panel
-    private var a11yBtn: AccessibilityButtonController.AccessibilityButtonCallback? = null
     private var failedId: String? = null
     private var pasteText: String? = null
     private var imeTop = 0
@@ -85,18 +83,7 @@ class BubbleService : AccessibilityService() {
         Notif.ensure(this)
         buildViews()
         store.addListener(storeListener)
-        registerA11yButton()
         Updater.maybeCheck(this, background = true)
-    }
-
-    /** One tap from anywhere (Accessibility button / gesture / volume-key shortcut): understand this screen. */
-    private fun registerA11yButton() {
-        val cb = object : AccessibilityButtonController.AccessibilityButtonCallback() {
-            override fun onClicked(controller: AccessibilityButtonController) {
-                if (panel.isOpen) panel.close() else openPanel("screen", true)
-            }
-        }
-        runCatching { accessibilityButtonController.registerAccessibilityButtonCallback(cb) }.onSuccess { a11yBtn = cb }
     }
 
     private fun dp(v: Float): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
@@ -470,8 +457,6 @@ class BubbleService : AccessibilityService() {
         if (::store.isInitialized) store.removeListener(storeListener)
         if (::recorder.isInitialized) recorder.cancel()
         if (::panel.isInitialized) panel.close()
-        a11yBtn?.let { cb -> runCatching { accessibilityButtonController.unregisterAccessibilityButtonCallback(cb) } }
-        a11yBtn = null
         hide()
         h.removeCallbacksAndMessages(null)
     }

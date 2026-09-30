@@ -2,12 +2,12 @@
 <!-- Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0 -->
 <!--
   canTakeScreenshot: only used when YOU tap "Scan (OCR)" / "Understand screen" (Android 11+).
-  flagRequestAccessibilityButton: the Android Accessibility button/shortcut opens "Understand screen" in any app.
+  No flagRequestAccessibilityButton: Android shows a normal On/Off switch, no shortcut / floating button.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeViewFocused|typeViewClicked"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagRequestAccessibilityButton"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:canTakeScreenshot="true"
     android:notificationTimeout="100"
