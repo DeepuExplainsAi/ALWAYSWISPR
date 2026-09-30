@@ -22,9 +22,10 @@ jobs:
           java-version: "17"
 
       - uses: android-actions/setup-android@v4
-
-            accept-android-sdk-licenses: true
-            log-accepted-android-sdk-licenses: false
+        with:
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
