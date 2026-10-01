@@ -14,6 +14,7 @@ https://github.com/user-attachments/assets/a830ca98-6e18-4123-a721-9fabcec612f3
     <img src="https://img.shields.io/badge/ANDROID%20APK%20%7C%20DOWNLOAD-34A853?style=for-the-badge&logo=android&logoColor=white" alt="Download Wispr Android APK">
   </a>
 </p>
+<img width="248" height="252" alt="1000074322" src="https://github.com/user-attachments/assets/658ffb27-ccf6-4a4c-b632-4aaaffe94a43" />
 
 
 Speak in Hinglish, Hindi, English or 25+ languages, and Wispr types it into **any app**, over **any keyboard**.
