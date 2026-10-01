@@ -27,8 +27,6 @@ Open source under the **Apache License 2.0**. Copyright 2026 Deepu Gupta.
 - **Hinglish by default.** Hindi toggle OFF = always Roman Hinglish ("kal meeting hai"). ON = Devanagari.
 - **Your own free Groq key.** Stored with Android Keystore (AES-256-GCM). No Wispr server, no account, no tracking.
 
-## Models (all on Groq's free plan, checked 30 Sep 2026)
-
 | Use | Model | Notes |
 | --- | --- | --- |
 | Speech | `whisper-large-v3` (default), `whisper-large-v3-turbo` | 20 req/min, 2,000/day, 8 h audio/day |
