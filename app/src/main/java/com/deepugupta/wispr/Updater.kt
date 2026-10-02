@@ -109,7 +109,23 @@ object Updater {
         }
     }
 
-    fun isNewer(v: String): Boolean = v.isNotBlank() && compare(v, BuildConfig.VERSION_NAME) > 0
+    private fun localVersion(): String = BuildConfig.VERSION_NAME.replace(Regex("-build\\.\\d+$"), "")
+
+    fun isNewer(v: String): Boolean = v.isNotBlank() && compare(v, localVersion()) > 0
+
+    private fun installedSha(ctx: Context): String {
+        val key = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).lastUpdateTime.toString() }.getOrDefault("")
+        val p = sp(ctx)
+        if (key.isNotEmpty() && p.getString("instKey", null) == key) return p.getString("instSha", "") ?: ""
+        val sha = runCatching { sha256(File(ctx.applicationInfo.sourceDir)) }.getOrDefault("")
+        p.edit().putString("instKey", key).putString("instSha", sha).apply()
+        return sha
+    }
+
+    fun hasUpdate(ctx: Context, rel: Release): Boolean {
+        if (rel.sha256.length == 64 && rel.sha256.equals(installedSha(ctx), ignoreCase = true)) return false
+        return isNewer(rel.version)
+    }
 
     // ---------------- state for the UI ----------------
 
@@ -126,7 +142,7 @@ object Updater {
 
     private fun base(ctx: Context): JSONObject {
         val p = sp(ctx)
-        val rel = cached(ctx)?.takeIf { isNewer(it.version) }
+        val rel = cached(ctx)?.takeIf { hasUpdate(ctx, it) }
         val o = JSONObject()
             .put("current", BuildConfig.VERSION_NAME)
             .put("configured", configured())
@@ -183,6 +199,7 @@ object Updater {
     fun checkNow(ctx: Context) { val app = ctx.applicationContext; Engine.io { check(app, force = true, background = false) } }
 
     private fun check(ctx: Context, force: Boolean, background: Boolean) {
+        if (force) { live = null; sp(ctx).edit().remove("etag").apply() }
         if (!configured()) { emit(ctx, null); return }
         if (!busy.compareAndSet(false, true)) return
         val p = sp(ctx)
@@ -192,12 +209,14 @@ object Updater {
             if (force) emit(ctx, "checking")
             val rel = fetchLatest(ctx)
             p.edit().putLong("last", now).remove("retryAt").putString("rel", rel.toJson().toString()).apply()
-            if (!isNewer(rel.version)) {
+            if (!hasUpdate(ctx, rel)) {
                 cleanup(ctx, keep = null)
-                emit(ctx, if (force) JSONObject().put("state", "uptodate").put("msg", "You're on the latest version.") else null)
+                p.edit().remove("skip").remove("notified").apply()
+                Notif.cancelUpdate(ctx)
+                emit(ctx, if (force) JSONObject().put("state", "uptodate").put("msg", "✓ You're on the latest version (v${BuildConfig.VERSION_NAME})") else null)
                 return
             }
-            emit(ctx, null)
+            emit(ctx, if (force) JSONObject().put("state", "available").put("msg", "Update found: v${rel.version}") else null)
             // Background: download on Wi-Fi if allowed, then tell the user once per version.
             val m = mode(ctx)
             if (!MainActivity.visible && m != "off" && p.getString("skip", "") != rel.version) {
@@ -233,6 +252,12 @@ object Updater {
         .header("User-Agent", "Wispr-by-Deepu-Gupta/${BuildConfig.VERSION_NAME} (Android ${Build.VERSION.RELEASE})")
 
     private fun fetchLatest(ctx: Context): Release {
+        val r = fetchRelease(ctx)
+        if (r.sha256.length == 64) return r
+        return r.copy(sha256 = runCatching { fetchSum(r) }.getOrDefault(""))
+    }
+
+    private fun fetchRelease(ctx: Context): Release {
         return try {
             fromApi(ctx)
         } catch (e: UpdateError) {
@@ -314,10 +339,10 @@ object Updater {
         Engine.io {
             if (!busy.compareAndSet(false, true)) return@io
             try {
-                val rel = cached(app)?.takeIf { isNewer(it.version) } ?: fetchLatest(app).also {
+                val rel = cached(app)?.takeIf { hasUpdate(app, it) } ?: fetchLatest(app).also {
                     sp(app).edit().putString("rel", it.toJson().toString()).putLong("last", System.currentTimeMillis()).apply()
                 }
-                if (!isNewer(rel.version)) { emit(app, JSONObject().put("state", "uptodate").put("msg", "You're on the latest version.")); return@io }
+                if (!hasUpdate(app, rel)) { emit(app, JSONObject().put("state", "uptodate").put("msg", "✓ You're on the latest version (v${BuildConfig.VERSION_NAME})")); return@io }
                 val f = readyFile(app, rel)?.takeIf { verifyFile(app, it) } ?: download(app, rel, quiet = false)
                 install(app, f, rel.version)
             } catch (e: UpdateError) {

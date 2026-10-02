@@ -102,15 +102,48 @@ class Panel(private val svc: BubbleService) {
     }
 
     /** Sits below the status bar and above the keyboard (if one is open). */
+    private fun panelPrefs() = svc.getSharedPreferences("panel_window", Context.MODE_PRIVATE)
+
     private fun fit() {
         val sw = svc.screenW()
         val sh = svc.screenH()
-        lp.width = minOf(sw - dp(16f), dp(460f))
         val top = dp(34f)
         val ime = svc.imeTopNow()
         val bottom = if (ime > top + dp(200f)) ime - dp(8f) else sh - dp(48f)
+
+        val maxW = minOf(sw - dp(16f), dp(460f))
+        val maxH = minOf(maxOf(dp(260f), bottom - top), dp(660f))
+
+        val pref = panelPrefs()
+        val savedW = pref.getInt("w", 0)
+        val savedH = pref.getInt("h", 0)
+
+        lp.width = if (savedW > 0) savedW.coerceIn(dp(300f), maxW) else maxW
+        lp.height = if (savedH > 0) savedH.coerceIn(dp(260f), maxH) else maxH
         lp.y = top
-        lp.height = (bottom - top).coerceIn(dp(260f), dp(660f)).coerceAtMost(sh - top - dp(8f))
+    }
+
+    private fun resizeWindow(widthPx: Int, heightPx: Int) {
+        if (web == null) return
+        val sw = svc.screenW()
+        val sh = svc.screenH()
+        val top = dp(34f)
+        val ime = svc.imeTopNow()
+        val bottom = if (ime > top + dp(200f)) ime - dp(8f) else sh - dp(48f)
+
+        val maxW = minOf(sw - dp(16f), dp(460f))
+        val maxH = minOf(maxOf(dp(260f), bottom - top), dp(660f))
+
+        lp.width = widthPx.coerceIn(dp(300f), maxW)
+        lp.height = heightPx.coerceIn(dp(260f), maxH)
+        lp.y = top
+
+        panelPrefs().edit()
+            .putInt("w", lp.width)
+            .putInt("h", lp.height)
+            .apply()
+
+        relayout()
     }
 
     private fun relayout() {
@@ -214,6 +247,11 @@ class Panel(private val svc: BubbleService) {
         @JavascriptInterface fun hasTarget(): Boolean = svc.hasInsertTarget()
         @JavascriptInterface fun close() { h.post { this@Panel.close() } }
         @JavascriptInterface fun keyboard(on: Boolean) { h.post { setFocusable(on) } }
+
+        @JavascriptInterface
+        fun resizeWindow(widthPx: Int, heightPx: Int) {
+            h.post { this@Panel.resizeWindow(widthPx, heightPx) }
+        }
 
         /** Big mic in the panel: close it and dictate into the box below, like tapping the bubble. */
         @JavascriptInterface
