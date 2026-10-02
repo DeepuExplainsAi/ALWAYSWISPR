@@ -6,7 +6,6 @@
  */
 package com.deepugupta.wispr
 import android.content.Context
-import android.content.Context
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.PixelFormat
