@@ -41,6 +41,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store.get(this)
+        forgetOldUpdateInfo()
         WebView.setWebContentsDebuggingEnabled(false)
         web = WebView(this)
         setContentView(web)
@@ -89,6 +90,31 @@ class MainActivity : Activity() {
         handleIntent(intent)
     }
 
+    /**
+     * First open after a fresh install or an update: forget everything the OLD version cached about updates
+     * (release info, downloaded APK, "already notified" flags) and remove its old "Update available" notification.
+     * The next check then starts clean, so a just-installed latest version never shows an Update banner.
+     */
+    private fun forgetOldUpdateInfo() {
+        val flags = getSharedPreferences("perm_flags", MODE_PRIVATE)
+        val installed = runCatching { packageManager.getPackageInfo(packageName, 0).lastUpdateTime }.getOrDefault(0L)
+        val build = "${BuildConfig.VERSION_NAME}#$installed"
+        if (flags.getString("seenBuild", null) == build) return
+        flags.edit().putString("seenBuild", build).apply()
+        getSharedPreferences("wispr_update", MODE_PRIVATE).edit()
+            .remove("rel").remove("etag").remove("readyVer").remove("readyPath")
+            .remove("notified").remove("last").remove("retryAt")
+            .apply()
+        runCatching { Notif.cancelUpdate(this) }
+    }
+
+    /** True only when a newer version really is waiting (used before showing the update card). */
+    private fun realUpdateWaiting(): Boolean = runCatching {
+        val s = JSONObject(Updater.stateJson(this))
+        val st = s.optString("state")
+        (st == "available" || st == "ready") && Updater.isNewer(s.optString("latest"))
+    }.getOrDefault(false)
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -103,7 +129,12 @@ class MainActivity : Activity() {
         }
         when (i?.getStringExtra("update")) {
             "install" -> { i.removeExtra("update"); Notif.cancelUpdate(this); startUpdate() }
-            "show" -> { i.removeExtra("update"); Notif.cancelUpdate(this); js("window.WisprShowUpdate&&WisprShowUpdate()") }
+            "show" -> {
+                i.removeExtra("update")
+                Notif.cancelUpdate(this)
+                // An old notification can outlive the update: only open the card if there really is one.
+                if (realUpdateWaiting()) js("window.WisprShowUpdate&&WisprShowUpdate()")
+            }
         }
     }
 

@@ -1,3 +1,7 @@
+## Wispr v4.1.4
+
+- Latest changes
+
 ## Wispr by Deepu Gupta v4.1.0
 
 **New: in-app updates**

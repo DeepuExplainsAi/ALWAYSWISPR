@@ -29,6 +29,9 @@ object Engine {
     private val DELAYS = longArrayOf(1500, 3000, 6000, 10000, 15000)
     private val running: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
+    /** Devanagari or Urdu/Arabic letters = Hindi written in a non-Roman script. */
+    private val HINDI_SCRIPT = Regex("[\\u0900-\\u097F]")
+
     private class NoSpeech : Exception()
 
     fun io(block: () -> Unit) { pool.execute { block() } }
@@ -128,9 +131,16 @@ object Engine {
     /**
      * Whisper "prompt": a style example in the chosen language + the user's own words from Spellings
      * (names, brands, jargon). This is the biggest accuracy win for fast speech. Whisper reads max ~224 tokens.
+     * Auto-detect gets a mixed English + Hinglish example, so Whisper keeps each part as spoken
+     * instead of turning the whole recording into English.
      */
     internal fun whisperPrompt(st: Store, lang: String): String? {
-        val style = when (lang) { "hinglish" -> Prompts.HINGLISH_HINT; "hi" -> Prompts.HI_HINT; else -> null }
+        val style = when (lang) {
+            "hinglish" -> Prompts.HINGLISH_HINT
+            "hi" -> Prompts.HI_HINT
+            "auto" -> Prompts.AUTO_HINT
+            else -> null
+        }
         val vocab = st.vocabulary().take(40).joinToString(", ")
         val p = listOfNotNull(style, vocab.takeIf { it.isNotBlank() }?.let { "Words: $it." }).joinToString(" ")
         return p.take(600).ifBlank { null }
@@ -153,14 +163,19 @@ object Engine {
         throw last ?: GroqError("No text model available on Groq.", false)
     }
 
+    private fun hasHindiScript(t: String): Boolean = HINDI_SCRIPT.containsMatchIn(t) || Translit.hasArabic(t)
+
     /**
      * Output script rules:
-     *  - "hinglish" (default, Hindi toggle OFF): output is ALWAYS Roman letters. Groq model first; if the result still
-     *    has Hindi/Urdu script, a second pass; if Groq fails completely, the offline [Translit] converter. 100% no Devanagari.
-     *  - "hi" (Hindi toggle ON): Devanagari as spoken (Urdu script is fixed to Devanagari).
-     *  - "auto": any language as spoken; Hindi/Urdu script is romanised unless the Hindi toggle is ON.
-     *  - other languages: their own script.
-     *  - Translate mode: target language's script ("Hinglish" target = Roman).
+     * - "hinglish" (default, Hindi toggle OFF): output is ALWAYS Roman letters. Groq model first; if the result still
+     *   has Hindi/Urdu script, a second pass; if Groq fails completely, the offline [Translit] converter. 100% no Devanagari.
+     * - "hi" (Hindi toggle ON): Devanagari as spoken (Urdu script is fixed to Devanagari).
+     * - "auto": every sentence stays in the language it was spoken in (English stays English, Hinglish stays Hinglish,
+     *   other languages keep their script). Only Hindi/Urdu script is romanised, unless the Hindi toggle is ON.
+     * - "en": English, polished.
+     * - other languages: their own script.
+     * - Translate mode: target language's script ("Hinglish" target = Roman).
+     * Polish = Wispr Flow style: self-corrections applied, lists as points, all in ONE text call (no extra delay).
      */
     private fun shape(app: Context, st: Store, key: String, raw: String, onStatus: (String) -> Unit): String {
         val mode = st.str("mode")
@@ -174,15 +189,23 @@ object Engine {
         }
         val roman = lang == "hinglish" || ((lang == "auto" || lang == "en") && !deva)
         if (roman) {
-            val needs = Translit.hasNonLatinIndic(raw)
+            val auto = lang == "auto"
+            val needs = if (auto) hasHindiScript(raw) else Translit.hasNonLatinIndic(raw)
+            val polish = when (lang) {
+                "hinglish" -> Prompts.POLISH_HINGLISH
+                "en" -> Prompts.POLISH
+                else -> Prompts.POLISH_AUTO
+            }
             val first = try {
                 when {
-                    mode == "polish" -> withRetry(app, onStatus) { chatAny(st, key, Prompts.POLISH_HINGLISH, raw) }
+                    mode == "polish" -> withRetry(app, onStatus) { chatAny(st, key, polish, raw) }
                     needs -> withRetry(app, onStatus) { chatAny(st, key, Prompts.ROMAN, raw) }
                     fix -> withRetry(app, onStatus) { chatAny(st, key, Prompts.FIX_ONLY, raw) }
                     else -> raw
                 }
             } catch (e: GroqError) { raw }
+            // Auto: only Hindi/Urdu script gets romanised; Tamil, Bengali, etc. keep their own script.
+            if (auto && !hasHindiScript(first)) return first
             return forceRoman(app, st, key, first, onStatus)
         }
         var t = try {
