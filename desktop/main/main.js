@@ -40,7 +40,7 @@ function make(kind, file, opts) {
   w.kind = kind;
   // a crashed or failed page (GPU reset, sleep/resume, restart) reloads itself instead of staying blank
   w.webContents.on("render-process-gone", () => { if (!w.isDestroyed()) setTimeout(() => !w.isDestroyed() && w.reload(), 300); });
-  w.webContents.on("did-fail-load", () => setTimeout(() => !w.isDestroyed() && w.loadFile(path.join(ROOT, "renderer", file)), 500));
+  w.webContents.on("did-fail-load", (_e, code, _d, _u, isMainFrame) => isMainFrame && code !== -3 && setTimeout(() => !w.isDestroyed() && w.loadFile(path.join(ROOT, "renderer", file)), 500));
   w.loadFile(path.join(ROOT, "renderer", file));
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https:/.test(url)) shell.openExternal(url); return { action: "deny" }; });
   w.webContents.on("will-navigate", (e) => e.preventDefault());
@@ -397,10 +397,10 @@ if (gotLock) app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_wc, p, cb) => cb(allow.has(p)));
   session.defaultSession.setPermissionCheckHandler((_wc, p) => allow.has(p));
 
-  makeTray();
   makeBubble();
   applyAutostart(st.bool("autostart")); // keeps the entry valid after updates / moving the app
   bindWithRetry();
+  try { makeTray(); } catch {} // no tray (some Linux desktops, missing icon) must never take the shortcut and pill down
   if (!process.argv.includes("--hidden") || !st.apiKey) showMain();
   for (const ev of ["resume", "unlock-screen"]) powerMonitor.on(ev, () => setTimeout(rebind, 1500));
   screen.on("display-added", () => bubbleWin?.hide());

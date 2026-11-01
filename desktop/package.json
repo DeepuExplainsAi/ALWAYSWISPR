@@ -1,7 +1,7 @@
 {
   "name": "wispr-desktop",
   "productName": "Wispr",
-  "version": "4.1.5",
+  "version": "4.1.6",
   "description": "Wispr by Deepu Gupta for Windows, macOS and Linux: speak in Hinglish, Hindi, English or 25+ languages and it types into any app.",
   "author": "Deepu Gupta",
   "license": "Apache-2.0",
@@ -27,7 +27,7 @@
     "productName": "Wispr",
     "artifactName": "Wispr-by-Deepu-Gupta-${version}-${os}-${arch}.${ext}",
     "copyright": "Copyright 2026 Deepu Gupta. Apache-2.0",
-    "files": ["main/**", "preload/**", "renderer/**", "build/icon.png", "!**/*.test.js"],
+    "files": ["main/**", "preload/**", "renderer/**", "build/icon.png", "build/tray.png", "!**/*.test.js"],
     "asarUnpack": ["**/node_modules/uiohook-napi/**"],
     "publish": [{ "provider": "github", "owner": "DeepuExplainsAi", "repo": "ALWAYSWISPR" }],
     "directories": { "output": "dist" },
