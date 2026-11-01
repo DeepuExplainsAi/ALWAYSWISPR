@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0 -->
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden;font:600 13px system-ui,sans-serif;-webkit-user-select:none}
+#pill{position:absolute;inset:8px;display:flex;align-items:center;gap:8px;padding:0 8px;border-radius:999px;background:#17140f;color:#fff;border:1px solid #ff8a1f66;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+button{flex:none;width:32px;height:32px;border:0;border-radius:50%;color:#fff;font-size:16px;cursor:pointer}
+#no{background:#3a352c}
+#ok{background:linear-gradient(#ff9a3d,#e85d04)}
+canvas{flex:1;min-width:0;height:32px}
+#msg{flex:1;min-width:0;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+[data-s=work] #msg::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border:2px solid #ff8a1f;border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite}
+[data-s=err] #msg{color:#ffb4a8}
+[data-s=rec] #msg,[data-s=work] canvas,[data-s=work] button,[data-s=err] canvas,[data-s=err] button{display:none}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+<div id="pill" data-s="idle">
+  <button id="no" aria-label="Cancel">✕</button>
+  <canvas id="w" width="360" height="64"></canvas>
+  <span id="msg"></span>
+  <button id="ok" aria-label="Write it">✓</button>
+</div>
+<script>
+const B = window.WisprBubble, pill = document.getElementById("pill"), msg = document.getElementById("msg");
+const cv = document.getElementById("w"), g = cv.getContext("2d"), N = 36, lv = new Array(N).fill(0);
+document.getElementById("no").onclick = () => B.click("cancel");
+document.getElementById("ok").onclick = () => B.click("stop");
+B.on((s, m) => { pill.dataset.s = s; msg.textContent = m || ""; lv.fill(0); if (s === "rec") frame(); });
+function frame() {
+  if (pill.dataset.s !== "rec") return;
+  lv.shift(); lv.push(Math.min(1, B.level() * 3));
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.fillStyle = "#ff8a1f";
+  const gap = cv.width / N;
+  lv.forEach((v, i) => {
+    const h = 6 + v * (cv.height - 8);
+    g.fillRect(i * gap + 2, (cv.height - h) / 2, gap - 5, h);
+  });
+  requestAnimationFrame(frame);
+}
+</script>

@@ -1,0 +1,103 @@
+// Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0
+const test = require("node:test");
+const assert = require("node:assert");
+const http = require("node:http");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
+
+let hits = [];
+let script = () => ({ code: 200, body: {} });
+const server = http.createServer((req, res) => {
+  let b = ""; req.on("data", (c) => (b += c));
+  req.on("end", () => {
+    hits.push(req.url);
+    const { code, body, headers } = script(req.url, hits.length);
+    res.writeHead(code, { "Content-Type": "application/json", ...headers });
+    res.end(JSON.stringify(body));
+  });
+});
+test.before(() => new Promise((r) => server.listen(0, () => { process.env.WISPR_GROQ_BASE = `http://127.0.0.1:${server.address().port}/`; r(); })));
+test.after(() => server.close());
+
+const Groq = require("../main/groq");
+const Engine = require("../main/engine");
+const crypto = require("../main/crypto");
+const { Store } = require("../main/store");
+const Translit = require("../main/translit");
+const Updater = require("../main/updater");
+
+function newStore() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wispr-"));
+  crypto.init(dir, null);
+  const s = new Store(dir);
+  s.apiKey = "gsk_" + "a".repeat(30);
+  return s;
+}
+
+test("prompts are in sync with Prompts.kt", () => {
+  execFileSync("node", [path.join(__dirname, "../scripts/port-prompts.js"), "--check"]);
+});
+
+test("UI patches still match the Android HTML", () => {
+  require("../scripts/build-ui").build();
+  const h = fs.readFileSync(path.join(__dirname, "../renderer/index.html"), "utf8");
+  assert.ok(h.includes("hotkeyIn") && !h.includes("Keystore encryption on this phone"));
+});
+
+test("cleanKey strips junk", () => {
+  assert.strictEqual(Groq.cleanKey(' "Bearer gsk\\_abc123" \u200B'), "gsk_abc123");
+});
+
+test("parseWait understands Groq formats", () => {
+  assert.strictEqual(Groq.parseWait("1.5"), 1500);
+  assert.strictEqual(Groq.parseWait("300ms"), 300);
+  assert.strictEqual(Groq.parseWait("7m2.5s"), 422500);
+});
+
+test("Devanagari becomes Roman", () => {
+  assert.match(Translit.toRoman("कल मीटिंग है"), /kal/i);
+});
+
+test("verify maps 401 to an auth error", async () => {
+  script = () => ({ code: 401, body: { error: { message: "bad" } } });
+  await assert.rejects(Groq.verify("gsk_x"), (e) => e instanceof Groq.GroqError && e.auth && !e.retryable);
+});
+
+test("store never exposes or accepts the key from the UI", () => {
+  const s = newStore();
+  assert.ok(!s.publicJson().includes("gsk_aaaa"));
+  assert.strictEqual(s.putFromUi("key", "gsk_evil"), false);
+  assert.strictEqual(s.putFromUi("nope", "x"), false);
+});
+
+test("dictation: audio -> text, with a 429 retry", async () => {
+  Engine.env.delays = [1, 1, 1, 1, 1];
+  const s = newStore();
+  s.put("mode", "write"); s.put("lang", "en");
+  script = (url, n) => {
+    if (url.includes("transcriptions")) return n === 1 ? { code: 429, body: { error: { message: "slow down" } }, headers: { "retry-after": "0" } } : { code: 200, body: { text: "hello world" } };
+    return { code: 200, body: { choices: [{ message: { content: "Hello world." } }] } };
+  };
+  hits = [];
+  const r = await Engine.submit(s, Buffer.from("fake-audio"), "audio/webm");
+  assert.ok(r.ok, r.text);
+  assert.match(r.text, /hello world/i);
+  assert.ok(hits.filter((u) => u.includes("transcriptions")).length >= 2);
+});
+
+test("dictation: silence is reported, not pasted", async () => {
+  Engine.env.delays = [1, 1, 1, 1, 1];
+  const s = newStore();
+  script = () => ({ code: 200, body: { text: "  " } });
+  const r = await Engine.submit(s, Buffer.from("x"), "audio/webm");
+  assert.strictEqual(r.ok, false);
+});
+
+test("updater only looks at desktop-v releases", async () => {
+  const rel = (tag, extra = {}) => ({ tag_name: tag, html_url: "u/" + tag, body: "", assets: [], ...extra });
+  const fakeFetch = async () => ({ ok: true, json: async () => [rel("v9.0.0"), rel("desktop-v4.2.0"), rel("desktop-v4.1.4"), rel("desktop-v9.9.9", { draft: true })] });
+  assert.strictEqual((await Updater.check("4.1.4", fakeFetch)).version, "4.2.0");
+  assert.strictEqual(await Updater.check("4.2.0", fakeFetch), null);
+});

@@ -53,6 +53,17 @@ Open source under the **Apache License 2.0**. Copyright 2026 Deepu Gupta.
 2. **Release**: bump `wispr.version` in `gradle.properties`, write `RELEASE_NOTES.md`, then `git tag v4.1.0 && git push origin v4.1.0`. The signed APK + `SHA256SUMS.txt` land on the **Releases** page. Tags with a dash (`v4.2.0-beta.1`) become pre-releases.
 3. Test build without releasing: **Actions → Build APK and publish release → Run workflow** (APK under *Artifacts*).
 
+## PC app (Windows, macOS, Linux)
+
+Same Wispr, on your computer. Press a shortcut in any app, speak, press it again: your words are typed where your cursor is. It only adds text, never deletes. Same screens, prompts and Groq key logic as the phone app (the PC app builds its screens from the Android HTML).
+
+- **Download**: Releases page, tags named `desktop-v…` (Windows `.exe` installer or portable, macOS `.dmg`, Linux `.AppImage` / `.deb`).
+- **Shortcuts** (change in Settings): dictate `Ctrl+Shift+Space` (`⌘+Shift+Space` on Mac), mini window `Ctrl+Shift+W`. Esc cancels. Wispr lives in the tray.
+- **Permissions**: microphone everywhere. macOS also needs *Accessibility* (to paste) and *Screen Recording* (Understand screen). Linux: pasting works on X11; on Wayland the text is copied and you press Ctrl+V.
+- **First run**: unsigned builds. Windows SmartScreen: *More info → Run anyway*. macOS: right-click → *Open*.
+- **Build from source**: `cd desktop && npm install && npm start` (Node 24). Tests: `npm test`. Installers: `npm run dist`.
+- **Release**: `git tag desktop-v4.1.4 && git push origin desktop-v4.1.4`. Never reuse the `v*` tags (those are the Android APK and its in-app updater).
+
 ## In-app updates
 
 Every installed Wispr checks this repo's latest GitHub Release (app open: every 6 h, keyboard bubble: every 12 h, with ETag caching and a fallback when GitHub's 60 requests/hour limit is hit). When a newer tag is out:

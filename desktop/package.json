@@ -10,7 +10,7 @@
   "scripts": {
     "build:ui": "node scripts/build-ui.js",
     "start": "node scripts/build-ui.js && electron .",
-    "test": "node --test test/",
+    "test": "node --test",
     "dist": "node scripts/build-ui.js && electron-builder"
   },
   "dependencies": {

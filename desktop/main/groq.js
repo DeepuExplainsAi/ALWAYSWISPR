@@ -1,6 +1,6 @@
 // Port of Groq.kt. Talks to Groq over HTTPS only; the key goes in a header and is never logged.
 // Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0
-const BASE = process.env.WISPR_GROQ_BASE || "https://api.groq.com/openai/v1/";
+const base = () => process.env.WISPR_GROQ_BASE || "https://api.groq.com/openai/v1/";
 
 class GroqError extends Error {
   /** o: auth (key refused), modelGone, badParam (retry without optional fields), code, retryAfterMs */
@@ -40,7 +40,7 @@ function parseWait(v) {
 async function exec(path, init) {
   let res, body;
   try {
-    res = await fetch(BASE + path, { ...init, signal: AbortSignal.timeout(180000) });
+    res = await fetch(base() + path, { ...init, signal: AbortSignal.timeout(180000) });
     body = await res.text();
   } catch {
     throw new GroqError("Couldn't reach Groq. Check your internet.", true);
