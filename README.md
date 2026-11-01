@@ -11,6 +11,15 @@ Free, private, no account. Bring your own free Groq key.</p>
   <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest"><img src="https://img.shields.io/badge/ANDROID%20APK%20%7C%20DOWNLOAD-34A853?style=for-the-badge&logo=android&logoColor=white" alt="ANDROID APK %7C DOWNLOAD"></a>
 </p>
 
+<table align="center">
+  <tr>
+    <td align="center" valign="top"><b>Windows 10 / 11</b><br>Press <code>Ctrl+Shift+Space</code>, speak,<br>press it again to type.<br><code>Esc</code> cancels · <code>Ctrl+Shift+W</code> mini window</td>
+    <td align="center" valign="top"><b>macOS</b><br>Press <code>⌘+Shift+Space</code>, speak,<br>press it again to type.<br><code>Esc</code> cancels · <code>⌘+Shift+W</code> mini window</td>
+    <td align="center" valign="top"><b>Linux</b><br>Press <code>Ctrl+Shift+Space</code>, speak,<br>press it again to type.<br><code>Esc</code> cancels · <code>Ctrl+Shift+W</code> mini window</td>
+    <td align="center" valign="top"><b>Android 8.0+</b><br>Tap the orange orb, speak,<br>tap ✓ to type (✕ cancels).<br>Hold the orb for the mini window</td>
+  </tr>
+</table>
+
 <p align="center">
   <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest">Latest release</a> ·
   <a href="#download">Which file do I need?</a> ·
