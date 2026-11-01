@@ -138,10 +138,6 @@ Wispr is a free alternative to Wispr Flow, Superwhisper and paid dictation apps.
 | Platforms | **Windows, macOS, Linux, Android** | Often 1 or 2 |
 | Source code | **Open (Apache-2.0)** | Closed |
 
-## Android
-
-Tap the orange orb over any keyboard, talk, tap ✓. Hold the orb for the mini window. Works with any keyboard in any app.
-
 ## FAQ
 
 <details><summary><b>Is Wispr really free?</b></summary>
