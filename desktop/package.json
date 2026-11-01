@@ -1,0 +1,45 @@
+{
+  "name": "wispr-desktop",
+  "productName": "Wispr",
+  "version": "4.1.4",
+  "description": "Wispr by Deepu Gupta for Windows, macOS and Linux: speak in Hinglish, Hindi, English or 25+ languages and it types into any app.",
+  "author": "Deepu Gupta",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/DeepuExplainsAi/ALWAYSWISPR",
+  "main": "main/main.js",
+  "scripts": {
+    "build:ui": "node scripts/build-ui.js",
+    "start": "node scripts/build-ui.js && electron .",
+    "test": "node --test test/",
+    "dist": "node scripts/build-ui.js && electron-builder"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.0",
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.deepugupta.wispr.desktop",
+    "productName": "Wispr",
+    "artifactName": "Wispr-by-Deepu-Gupta-${version}-${os}-${arch}.${ext}",
+    "copyright": "Copyright 2026 Deepu Gupta. Apache-2.0",
+    "files": ["main/**", "preload/**", "renderer/**", "build/icon.png", "!**/*.test.js"],
+    "asarUnpack": ["**/node_modules/uiohook-napi/**"],
+    "publish": [{ "provider": "github", "owner": "DeepuExplainsAi", "repo": "ALWAYSWISPR" }],
+    "directories": { "output": "dist" },
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }], "icon": "build/icon.png" },
+    "nsis": { "oneClick": true, "perMachine": false, "deleteAppDataOnUninstall": false },
+    "portable": { "artifactName": "Wispr-by-Deepu-Gupta-${version}-portable.${ext}" },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }, { "target": "zip", "arch": ["x64", "arm64"] }],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "identity": null,
+      "extendInfo": { "NSMicrophoneUsageDescription": "Wispr listens only while you dictate.", "NSScreenCaptureUsageDescription": "Wispr reads your screen only when you ask it to explain it." }
+    },
+    "linux": { "target": ["AppImage", "deb"], "category": "Utility", "icon": "build/icon.png", "maintainer": "Deepu Gupta" }
+  }
+}
