@@ -42,6 +42,7 @@ function patchIndex(h) {
   p(/<p class="legal">Every update is checked before install:[^<]*<\/p>/, '<p class="legal">Updates come from this project\'s GitHub Releases only.</p>', "update legal");
   p("runs inside its Android app.", "runs inside its desktop app.", "no bridge");
   p(/const PERMS = \[[\s\S]*?\n  \];/, PERMS, "PERMS");
+  p("</style>", fs.readFileSync(path.join(UI, "desktop.css"), "utf8") + "</style>", "desktop css");
   p("  /* ---------- boot ---------- */", fs.readFileSync(path.join(UI, "settings.js"), "utf8") + "\n  /* ---------- boot ---------- */", "boot marker");
   return h;
 }

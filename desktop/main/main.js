@@ -43,7 +43,7 @@ function make(kind, file, opts) {
 
 function showMain() {
   if (!mainWin || mainWin.isDestroyed()) {
-    mainWin = make("main", "index.html", { width: 460, height: 820, minWidth: 380, minHeight: 560, autoHideMenuBar: true, title: "Wispr" });
+    mainWin = make("main", "index.html", { width: 1180, height: 780, minWidth: 900, minHeight: 600, autoHideMenuBar: true, title: "Wispr" });
     mainWin.on("close", (e) => { if (!quitting) { e.preventDefault(); mainWin.hide(); } });
   }
   mainWin.show(); mainWin.focus();

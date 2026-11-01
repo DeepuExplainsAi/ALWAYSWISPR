@@ -1,0 +1,38 @@
+/* Desktop layout (injected by scripts/build-ui.js). Phone layout stays untouched below 820px. */
+@media (min-width:820px){
+  body{overflow:hidden}
+  .app{
+    max-width:none; height:100vh; min-height:0; margin:0; padding:0 var(--space-xl) var(--space-lg);
+    grid-template-columns:minmax(260px,320px) minmax(0,1fr); grid-template-rows:auto auto 1fr; column-gap:var(--space-xl);
+    grid-template-areas:"head head" "ctrl main" "dock main";
+  }
+  header{grid-area:head;padding-block:var(--space-lg)}
+  .controls{grid-area:ctrl;align-content:start}
+  main{grid-area:main;min-height:0;overflow-y:auto;padding-right:4px}
+  .dock{grid-area:dock;align-self:start;justify-self:center;padding-top:var(--space-xl)}
+  .toast{display:none}.toast.show{display:block}
+  .controls .langs{flex-wrap:wrap}
+
+  /* workspace: big editor on the left, history on the right */
+  #work:not(.hidden){display:grid!important;grid-template-columns:minmax(0,2.2fr) minmax(240px,1fr);grid-template-rows:auto auto minmax(0,1fr);column-gap:var(--space-xl);align-items:stretch;height:100%}
+  #work > .upd,#work > .perms{grid-column:1/-1}
+  #work > .editor{grid-column:1;grid-row:3;min-height:0;display:flex;flex-direction:column}
+  #work > .editor textarea{flex:1;min-height:0;height:100%;font-size:1.25rem;line-height:1.55}
+  #work > .recent{grid-column:2;grid-row:3;padding-top:0;min-height:0;overflow-y:auto}
+
+  .app:has(#onboard:not(.hidden)) main{grid-column:1/-1;grid-row:2/4}
+  .onboard{max-width:720px;margin:0 auto;padding:var(--space-xl) 0}
+  .onboard h1{font-size:3.5rem}
+  .onboard .lead{max-width:56ch;font-size:1.25rem}
+
+  /* settings: centered window with two columns */
+  dialog.sheet{margin:auto;max-width:980px;width:92vw;max-height:90vh;border-radius:var(--r-lg);box-shadow:var(--shadow-lg)}
+  dialog.sheet[open]{animation:none}
+  .grab{display:none}
+  .sheet-in{padding:var(--space-lg) var(--space-xl) var(--space-xl);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 var(--space-xl);align-items:start}
+  .row .field{flex:none;width:11rem}
+  .sheet-in > .sheet-head,.sheet-in > .legal{grid-column:1/-1}
+}
+@media (min-width:1280px){
+  .app{grid-template-columns:340px minmax(0,1fr);padding-inline:var(--space-2xl)}
+}
