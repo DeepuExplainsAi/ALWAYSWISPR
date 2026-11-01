@@ -36,6 +36,88 @@ All downloads are on one page: **[Latest release](https://github.com/DeepuExplai
 
 First start: the builds are not code-signed yet. Windows SmartScreen: **More info → Run anyway**. macOS: right-click → **Open**. Then paste your free Groq key from [console.groq.com/keys](https://console.groq.com/keys) and you are ready.
 
+## How to use on each device
+
+### Windows 10 / 11
+
+**Download:** `…-win-x64.exe` (installer) or `…-portable.exe` (no install)
+
+**Install**
+1. Run the file. If SmartScreen appears: **More info → Run anyway** (the app is not code-signed yet).
+2. Open Wispr, paste your free Groq key from [console.groq.com/keys](https://console.groq.com/keys), tap **Verify**.
+3. Allow the microphone when asked. Wispr then waits in the system tray.
+
+**How to use (shortcuts)**
+
+| Action | Shortcut |
+| --- | --- |
+| Start talking | `Ctrl` + `Shift` + `Space` |
+| Stop and type into the app you were using | `Ctrl` + `Shift` + `Space` (again) |
+| Cancel | `Esc` (or ✕ on the pill) |
+| Open the mini window (AI chat, modes, Understand screen) | `Ctrl` + `Shift` + `W` |
+Click in any text box first (browser, Word, WhatsApp Web, Slack...), press the shortcut, speak, press it again. Update: download the new installer and run it over the old one; your key and settings stay.
+
+
+### macOS (Apple Silicon and Intel)
+
+**Download:** `…-mac-arm64.dmg` (M1 to M4) or `…-mac-x64.dmg` (Intel)
+
+**Install**
+1. Open the dmg and drag **Wispr** to Applications. First start: right-click → **Open**.
+2. Paste your free Groq key and tap **Verify**.
+3. System Settings → Privacy & Security: allow **Microphone**, **Accessibility** (needed to paste into other apps) and **Screen Recording** (only for Understand screen).
+
+**How to use (shortcuts)**
+
+| Action | Shortcut |
+| --- | --- |
+| Start talking | `⌘` + `Shift` + `Space` |
+| Stop and type into the app you were using | `⌘` + `Shift` + `Space` (again) |
+| Cancel | `Esc` (or ✕ on the pill) |
+| Open the mini window | `⌘` + `Shift` + `W` |
+
+
+### Linux
+
+**Download:** `…-linux-x86_64.AppImage` (any distro) or `…-linux-amd64.deb` (Debian, Ubuntu, Mint)
+
+**Install**
+1. AppImage: `chmod +x Wispr-*.AppImage && ./Wispr-*.AppImage`. Deb: `sudo apt install ./Wispr-*.deb`.
+2. Paste your free Groq key and tap **Verify**. Allow the microphone.
+3. Auto-paste works on X11. On Wayland the text is copied and you press `Ctrl` + `V` yourself.
+
+**How to use (shortcuts)**
+
+| Action | Shortcut |
+| --- | --- |
+| Start talking | `Ctrl` + `Shift` + `Space` |
+| Stop and type into the app you were using | `Ctrl` + `Shift` + `Space` (again) |
+| Cancel | `Esc` (or ✕ on the pill) |
+| Open the mini window | `Ctrl` + `Shift` + `W` |
+
+
+### Android 8.0+
+
+**Download:** `Wispr-by-Deepu-Gupta-v<version>.apk`
+
+**Install**
+1. Open the APK. Android asks once to allow **Install unknown apps** for your browser or file manager.
+2. Open Wispr, paste your free Groq key and tap **Verify**.
+3. Allow the microphone and turn on the **Wispr bubble** (Accessibility). If Android says "Restricted setting": App info → ⋮ → **Allow restricted settings**, then turn it on again.
+
+**How to use (no keyboard shortcuts on a phone, you use the bubble)**
+
+| Action | Gesture |
+| --- | --- |
+| Start talking | Tap the orange orb over any keyboard |
+| Type it into the box | Tap ✓ |
+| Cancel | Tap ✕ |
+| Open the mini window (modes, AI chat, Understand screen) | Hold the orb |
+| Understand screen from any app | Android Accessibility button / shortcut |
+
+Updates: the app shows an update card and installs the new version over the old one; your key and settings stay.
+
+
 ## Why Wispr
 
 Wispr is a free alternative to Wispr Flow, Superwhisper and paid dictation apps. It is built for people who write in **Hinglish** and mix languages all day.
@@ -55,16 +137,6 @@ Wispr is a free alternative to Wispr Flow, Superwhisper and paid dictation apps.
 | Account and cloud server | **None** | Required |
 | Platforms | **Windows, macOS, Linux, Android** | Often 1 or 2 |
 | Source code | **Open (Apache-2.0)** | Closed |
-
-## Desktop shortcuts
-
-| Action | Windows / Linux | macOS |
-| --- | --- | --- |
-| Start / stop dictation (types into the focused app) | `Ctrl+Shift+Space` | `⌘+Shift+Space` |
-| Mini window (modes, AI chat, Understand screen) | `Ctrl+Shift+W` | `⌘+Shift+W` |
-| Cancel | `Esc` | `Esc` |
-
-Both shortcuts can be changed in Settings. Wispr waits in the system tray.
 
 ## Android
 
