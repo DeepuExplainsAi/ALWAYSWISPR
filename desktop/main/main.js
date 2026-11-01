@@ -2,8 +2,9 @@
 //   main  = full app (index.html)      panel = mini window (panel.html)      bubble = floating pill while dictating
 // A global shortcut starts/stops dictation; the result is pasted into whatever app had focus.
 // Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0
-const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, globalShortcut, clipboard, shell, screen, desktopCapturer, systemPreferences, nativeImage, session } = require("electron");
+const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, globalShortcut, clipboard, shell, screen, desktopCapturer, systemPreferences, nativeImage, session, powerMonitor } = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
 const crypto = require("./crypto");
 const { Store } = require("./store");
 const Engine = require("./engine");
@@ -20,13 +21,15 @@ const NOTICE = "Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. Open source un
 const MAC = process.platform === "darwin";
 const VERSION = require("../package.json").version;
 
-if (!app.requestSingleInstanceLock()) app.quit();
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
 
 let st, tray, mainWin, panelWin, bubbleWin;
 let phase = "idle"; // idle | rec | work  (hotkey dictation)
 let live = null;    // model ids Groq says this key can use
 let upd = { state: "idle", lastCheck: 0 };
 let quitting = false;
+let hideTimer;
 
 // ---------- windows ----------
 function make(kind, file, opts) {
@@ -35,6 +38,9 @@ function make(kind, file, opts) {
     webPreferences: { preload: path.join(ROOT, "preload/preload.js"), additionalArguments: [`--wispr-kind=${kind}`], contextIsolation: true, sandbox: false, nodeIntegration: false, backgroundThrottling: false },
   });
   w.kind = kind;
+  // a crashed or failed page (GPU reset, sleep/resume, restart) reloads itself instead of staying blank
+  w.webContents.on("render-process-gone", () => { if (!w.isDestroyed()) setTimeout(() => !w.isDestroyed() && w.reload(), 300); });
+  w.webContents.on("did-fail-load", () => setTimeout(() => !w.isDestroyed() && w.loadFile(path.join(ROOT, "renderer", file)), 500));
   w.loadFile(path.join(ROOT, "renderer", file));
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https:/.test(url)) shell.openExternal(url); return { action: "deny" }; });
   w.webContents.on("will-navigate", (e) => e.preventDefault());
@@ -63,16 +69,32 @@ function togglePanel() {
 function makeBubble() {
   bubbleWin = make("bubble", "bubble.html", { width: 200, height: 44, backgroundColor: "#00000000", frame: false, transparent: true, focusable: false, alwaysOnTop: true, skipTaskbar: true, resizable: false, hasShadow: false });
   bubbleWin.setAlwaysOnTop(true, "screen-saver");
+  if (MAC) bubbleWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   bubbleWin.setIgnoreMouseEvents(false);
+  return bubbleWin;
+}
+
+const liveBubble = () => (bubbleWin && !bubbleWin.isDestroyed() ? bubbleWin : makeBubble());
+
+/** Sends to the pill page, waiting for it to finish loading (right after launch or a reload). */
+function toBubble(...args) {
+  const wc = liveBubble().webContents;
+  if (wc.isLoading()) wc.once("did-finish-load", () => wc.send(...args));
+  else wc.send(...args);
 }
 
 function bubble(state, msg) {
-  if (!st.bool("bubble") || !bubbleWin) return;
-  if (state === "hide") return bubbleWin.hide();
+  if (!st.bool("bubble")) return;
+  clearTimeout(hideTimer);
+  if (state === "hide") {
+    toBubble("bubble", "hide");
+    hideTimer = setTimeout(() => bubbleWin && !bubbleWin.isDestroyed() && bubbleWin.hide(), 180); // after the fade-out
+    return;
+  }
   const w = state === "rec" ? 200 : Math.min(380, Math.max(150, 90 + String(msg || "").length * 7));
   const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
-  bubbleWin.setBounds({ x: Math.round(d.x + (d.width - w) / 2), y: Math.round(d.y + d.height - 44 - 36), width: w, height: 44 });
-  bubbleWin.webContents.send("bubble", state, msg);
+  liveBubble().setBounds({ x: Math.round(d.x + (d.width - w) / 2), y: Math.round(d.y + d.height - 44 - 36), width: w, height: 44 });
+  toBubble("bubble", state, msg);
   bubbleWin.showInactive();
 }
 
@@ -93,18 +115,18 @@ function toggleDictation() {
   if (phase === "idle") {
     if (!st.apiKey) { showMain(); return; }
     setPhase("rec");
-    bubbleWin.webContents.send("rec", "start");
+    toBubble("rec", "start");
     bubble("rec");
   } else if (phase === "rec") {
     setPhase("work");
-    bubbleWin.webContents.send("rec", "stop");
+    toBubble("rec", "stop");
     bubble("work", "Working…");
   }
 }
 
 function cancelDictation() {
   if (phase !== "rec") return;
-  bubbleWin.webContents.send("rec", "cancel");
+  toBubble("rec", "cancel");
   setPhase("idle");
   bubble("hide");
 }
@@ -136,6 +158,20 @@ function bindKeys() {
   return a && b;
 }
 
+/** The OS may not be ready right after login, or may drop shortcuts on wake: keep trying, then tell the user. */
+function bindWithRetry(n = 0) {
+  if (bindKeys()) return;
+  if (n < 10) return void setTimeout(() => bindWithRetry(n + 1), 3000);
+  new Notification({ title: "Wispr", body: "A Wispr shortcut is used by another app. Change it in Settings." }).show();
+  showMain();
+}
+
+function rebind() {
+  globalShortcut.unregisterAll();
+  bindWithRetry();
+  setPhase(phase);
+}
+
 /** Saves a new shortcut only if the OS lets us take it. */
 function setShortcut(key, acc) {
   const old = st.str(key);
@@ -148,6 +184,23 @@ function setShortcut(key, acc) {
   }
   st.put(key, acc);
   return true;
+}
+
+// ---------- start with the computer ----------
+function applyAutostart(on) {
+  if (!app.isPackaged) return;
+  if (process.platform === "linux") {
+    const f = path.join(app.getPath("appData"), "autostart", "wispr.desktop");
+    try {
+      if (!on) return fs.rmSync(f, { force: true });
+      fs.mkdirSync(path.dirname(f), { recursive: true });
+      const exe = process.env.APPIMAGE || process.execPath;
+      fs.writeFileSync(f, `[Desktop Entry]\nType=Application\nName=Wispr\nExec="${exe}" --hidden\nIcon=wispr\nTerminal=false\nX-GNOME-Autostart-enabled=true\n`);
+    } catch {}
+    return;
+  }
+  const exe = process.env.PORTABLE_EXECUTABLE_FILE; // Windows portable build runs from a temp folder
+  app.setLoginItemSettings({ openAtLogin: on, args: ["--hidden"], ...(exe ? { path: exe } : {}) });
 }
 
 // ---------- permissions ----------
@@ -222,7 +275,7 @@ const common = {
     try { value = JSON.parse(v); } catch { return false; }
     if (k === "hotkey" || k === "panelKey") return typeof value === "string" && setShortcut(k, value);
     const ok = st.putFromUi(k, value);
-    if (ok && k === "autostart") app.setLoginItemSettings({ openAtLogin: !!value, args: ["--hidden"] });
+    if (ok && k === "autostart") applyAutostart(!!value);
     return ok;
   },
   models: () => Models.json(live),
@@ -334,7 +387,7 @@ app.on("before-quit", () => { quitting = true; });
 app.on("will-quit", () => globalShortcut.unregisterAll());
 app.on("window-all-closed", () => {}); // lives in the tray
 
-app.whenReady().then(() => {
+if (gotLock) app.whenReady().then(() => {
   crypto.init(app.getPath("userData"), require("electron").safeStorage);
   st = new Store(app.getPath("userData"));
   Engine.env.online = () => require("electron").net.isOnline();
@@ -346,9 +399,11 @@ app.whenReady().then(() => {
 
   makeTray();
   makeBubble();
-  const ok = bindKeys();
-  if (!process.argv.includes("--hidden") || !st.apiKey || !ok) showMain();
-  if (!ok) new Notification({ title: "Wispr", body: "A Wispr shortcut is used by another app. Change it in Settings." }).show();
+  applyAutostart(st.bool("autostart")); // keeps the entry valid after updates / moving the app
+  bindWithRetry();
+  if (!process.argv.includes("--hidden") || !st.apiKey) showMain();
+  for (const ev of ["resume", "unlock-screen"]) powerMonitor.on(ev, () => setTimeout(rebind, 1500));
+  screen.on("display-added", () => bubbleWin?.hide());
   setTimeout(() => checkUpdate(false), 8000);
   setInterval(() => checkUpdate(false), 12 * 3600 * 1000);
 });
