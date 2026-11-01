@@ -31,9 +31,8 @@ None of this has been run end-to-end yet; only smoke-checked (`node --check`, Tr
 Items 1-11 of the old TODO are done: `scripts/build-ui.js`, `preload/preload.js`, `main/main.js` (+ `paste.js`, `updater.js`), `ui/bubble.html`, `ui/settings.js`, tests (`npm test`), `.github/workflows/desktop.yml`, README section.
 Smoke-tested under xvfb: windows open, bridge round-trips, hotkey registers. NOT tested on real hardware: mic recording, paste into other apps, tray, installers. Item 12 (CI build + `desktop-v4.1.4` release) needs the owner to push the tag.
 
-## Release trap (important)
-The Android in-app updater (`Updater.kt`) reads `releases/latest` and looks for an `.apk` asset. If a desktop release becomes "latest", **every phone's updater breaks**. So desktop releases MUST use tags `desktop-v*` and `make_latest: false` (and be skipped by the phone: it already ignores releases without an apk, but do not rely on that).
-Also `.github/workflows/release.yml` triggers on `v*` tags — `desktop-v*` does not match it (good, keep it that way).
+## Releases
+APK and PC installers live on the same release `vX.Y.Z` (the "latest" one). The phone updater only takes the `.apk` asset, so extra files are safe. Pushing tag `desktop-vX.Y.Z` builds the installers and uploads them to `vX.Y.Z` (`.github/workflows/desktop.yml`). `release.yml` still triggers on `v*` only; `desktop-v*` does not match it.
 
 ## Sandbox / test notes
 - Sandbox has 480 MB RAM. Electron runs only with: `xvfb-run -a npx electron --no-sandbox --disable-gpu --disable-dev-shm-usage --js-flags=--jitless <script>` (root requires `--no-sandbox`; `--single-process`/`--no-zygote` crash). Always wrap in `timeout -s KILL 50` and `pkill -9 -f electron; pkill -9 Xvfb` afterwards — leftovers hang the shell.

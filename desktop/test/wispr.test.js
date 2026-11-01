@@ -95,9 +95,9 @@ test("dictation: silence is reported, not pasted", async () => {
   assert.strictEqual(r.ok, false);
 });
 
-test("updater only looks at desktop-v releases", async () => {
-  const rel = (tag, extra = {}) => ({ tag_name: tag, html_url: "u/" + tag, body: "", assets: [], ...extra });
-  const fakeFetch = async () => ({ ok: true, json: async () => [rel("v9.0.0"), rel("desktop-v4.2.0"), rel("desktop-v4.1.4"), rel("desktop-v9.9.9", { draft: true })] });
+test("updater only offers releases that carry a desktop installer", async () => {
+  const rel = (tag, names, extra = {}) => ({ tag_name: tag, html_url: "u/" + tag, body: "", assets: names.map((name) => ({ name })), ...extra });
+  const fakeFetch = async () => ({ ok: true, json: async () => [rel("v9.0.0", ["x.apk"]), rel("v4.2.0", ["x.apk", "Wispr-4.2.0-win-x64.exe"]), rel("v4.1.4", ["Wispr-4.1.4-mac-arm64.dmg"]), rel("v9.9.9", ["a.exe"], { draft: true })] });
   assert.strictEqual((await Updater.check("4.1.4", fakeFetch)).version, "4.2.0");
   assert.strictEqual(await Updater.check("4.2.0", fakeFetch), null);
 });
