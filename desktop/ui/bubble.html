@@ -25,8 +25,9 @@ canvas{flex:1;min-width:0;height:30px}
 <script>
 const B = window.WisprBubble, pill = document.getElementById("pill"), msg = document.getElementById("msg");
 const cv = document.getElementById("w"), g = cv.getContext("2d");
-document.getElementById("no").onclick = () => B.click("cancel");
-document.getElementById("ok").onclick = () => B.click("stop");
+const press = (id, what) => document.getElementById(id).addEventListener("pointerdown", (e) => { e.preventDefault(); B.click(what); });
+press("no", "cancel");
+press("ok", "stop");
 
 const BARS = 15, bars = new Array(BARS).fill(0);
 let level = 0, raf = 0, last = 0;
