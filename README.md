@@ -55,6 +55,7 @@ First start: the builds are not code-signed yet. Windows SmartScreen: **More inf
 | Stop and type into the app you were using | `Ctrl` + `Shift` + `Space` (again) |
 | Cancel | `Esc` (or ✕ on the pill) |
 | Open the mini window (AI chat, modes, Understand screen) | `Ctrl` + `Shift` + `W` |
+
 Click in any text box first (browser, Word, WhatsApp Web, Slack...), press the shortcut, speak, press it again. Update: download the new installer and run it over the old one; your key and settings stay.
 
 
