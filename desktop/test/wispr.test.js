@@ -101,3 +101,11 @@ test("updater only offers releases that carry a desktop installer", async () => 
   assert.strictEqual((await Updater.check("4.1.4", fakeFetch)).version, "4.2.0");
   assert.strictEqual(await Updater.check("4.2.0", fakeFetch), null);
 });
+
+test("no key handler returns false (that silently blocks typing and Ctrl+V)", () => {
+  require("../scripts/build-ui").build();
+  for (const f of ["index.html", "panel.html"]) {
+    const h = fs.readFileSync(path.join(__dirname, "../renderer", f), "utf8");
+    assert.ok(!/onkey(down|up|press)\s*=\s*e\s*=>\s*e\.key\s*===[^;{]*&&/.test(h), `${f}: key handler can return false`);
+  }
+});

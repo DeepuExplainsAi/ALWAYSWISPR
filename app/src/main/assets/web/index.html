@@ -714,7 +714,7 @@ dialog.sheet::backdrop{background:rgba(23,23,12,.35)}
     } catch (e) { status.className = "status err"; status.textContent = e.message; }
   }
   $("verifyBtn").onclick = () => doVerify($("keyInput"), $("keyStatus"), () => setTimeout(() => { route(); setState("idle"); toast("You're set. Allow the permissions below."); }, 600));
-  $("keyInput").onkeydown = e => e.key === "Enter" && $("verifyBtn").click();
+  $("keyInput").onkeydown = e => { if (e.key === "Enter") $("verifyBtn").click(); };
 
   /* ---------- settings ---------- */
   const dlg = $("settings");
