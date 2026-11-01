@@ -1,24 +1,107 @@
-# Wispr by Deepu Gupta
+<h1 align="center">Wispr: free, open-source Wispr Flow alternative</h1>
 
+<p align="center"><b>Voice typing for Windows, macOS, Linux and Android.</b><br>
+Speak in Hinglish, Hindi, English or 25+ languages. Wispr types it into any app, in seconds.<br>
+Free, private, no account. Bring your own free Groq key.</p>
 
+<p align="center">
+  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest"><img src="https://img.shields.io/badge/WINDOWS%20%7C%20DOWNLOAD-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="WINDOWS %7C DOWNLOAD"></a>
+  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest"><img src="https://img.shields.io/badge/macOS%20%7C%20DOWNLOAD-111111?style=for-the-badge&logo=apple&logoColor=white" alt="macOS %7C DOWNLOAD"></a>
+  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest"><img src="https://img.shields.io/badge/LINUX%20%7C%20DOWNLOAD-E95420?style=for-the-badge&logo=linux&logoColor=white" alt="LINUX %7C DOWNLOAD"></a>
+  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest"><img src="https://img.shields.io/badge/ANDROID%20APK%20%7C%20DOWNLOAD-34A853?style=for-the-badge&logo=android&logoColor=white" alt="ANDROID APK %7C DOWNLOAD"></a>
+</p>
 
+<p align="center">
+  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest">Latest release</a> ·
+  <a href="#download">Which file do I need?</a> ·
+  <a href="#why-wispr">Why Wispr</a> ·
+  <a href="#faq">FAQ</a> ·
+  <a href="LICENSE">Apache-2.0</a>
+</p>
 
 https://github.com/user-attachments/assets/a830ca98-6e18-4123-a721-9fabcec612f3
 
+## Download
 
+All downloads are on one page: **[Latest release](https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/latest)**. Pick the file for your device.
 
+| Your device | File to download | Notes |
+| --- | --- | --- |
+| **Windows 10 / 11** | `Wispr-by-Deepu-Gupta-<version>-win-x64.exe` | Installer. `…-portable.exe` runs without installing. |
+| **macOS, Apple Silicon (M1 to M4)** | `…-mac-arm64.dmg` | Open the dmg, drag Wispr to Applications. |
+| **macOS, Intel** | `…-mac-x64.dmg` | |
+| **Linux (any distro)** | `…-linux-x86_64.AppImage` | `chmod +x` it and run. |
+| **Debian / Ubuntu / Mint** | `…-linux-amd64.deb` | `sudo apt install ./file.deb` |
+| **Android 8.0+** | `Wispr-by-Deepu-Gupta-v<version>.apk` | Updates itself from GitHub Releases. |
 
+First start: the builds are not code-signed yet. Windows SmartScreen: **More info → Run anyway**. macOS: right-click → **Open**. Then paste your free Groq key from [console.groq.com/keys](https://console.groq.com/keys) and you are ready.
 
+## Why Wispr
 
-<p align="center">
-  <a href="https://github.com/DeepuExplainsAi/ALWAYSWISPR/releases/download/v4.1.0/Wispr-by-Deepu-Gupta-v4.1.0-build.21.apk">
-    <img src="https://img.shields.io/badge/ANDROID%20APK%20%7C%20DOWNLOAD-34A853?style=for-the-badge&logo=android&logoColor=white" alt="Download Wispr Android APK">
-  </a>
-</p>
+Wispr is a free alternative to Wispr Flow, Superwhisper and paid dictation apps. It is built for people who write in **Hinglish** and mix languages all day.
 
+- **Works in every app.** Press one shortcut, speak, press it again. The text appears where your cursor is: browser, Word, Slack, WhatsApp Web, VS Code, email. It only adds text and never deletes yours.
+- **Hinglish first.** "kal meeting hai" stays Roman Hinglish. Turn on Hindi to get Devanagari. 25+ languages, plus translate while you speak.
+- **Fast and accurate.** Whisper large-v3 on Groq for speech, then an AI pass that fixes punctuation, removes filler words and keeps your meaning.
+- **Private by design.** No Wispr server, no account, no tracking. Audio goes straight from your device to Groq over HTTPS with your own key, which is stored encrypted in the system keychain.
+- **Free.** Groq's free plan is enough for daily use. The app, the source code and updates cost nothing.
+- **More than dictation.** AI chat in a mini window, Understand screen (reads and explains anything on your screen, with OCR for images and PDFs), custom spellings, history with one-tap retry.
+- **Open source.** Apache-2.0. Read it, fork it, audit it.
 
-Speak in Hinglish, Hindi, English or 25+ languages, and Wispr types it into **any app**, over **any keyboard**.
-Open source under the **Apache License 2.0**. Copyright 2026 Deepu Gupta.
+| | Wispr | Typical paid dictation apps |
+| --- | --- | --- |
+| Price | **Free** | Monthly subscription |
+| Hinglish and Indian languages | **Built in** | Limited |
+| Account and cloud server | **None** | Required |
+| Platforms | **Windows, macOS, Linux, Android** | Often 1 or 2 |
+| Source code | **Open (Apache-2.0)** | Closed |
+
+## Desktop shortcuts
+
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Start / stop dictation (types into the focused app) | `Ctrl+Shift+Space` | `⌘+Shift+Space` |
+| Mini window (modes, AI chat, Understand screen) | `Ctrl+Shift+W` | `⌘+Shift+W` |
+| Cancel | `Esc` | `Esc` |
+
+Both shortcuts can be changed in Settings. Wispr waits in the system tray.
+
+## Android
+
+Tap the orange orb over any keyboard, talk, tap ✓. Hold the orb for the mini window. Works with any keyboard in any app.
+
+## FAQ
+
+<details><summary><b>Is Wispr really free?</b></summary>
+Yes. You use your own free Groq API key. There is no subscription and no Wispr account.
+</details>
+
+<details><summary><b>Is it a Wispr Flow alternative?</b></summary>
+Yes: global shortcut, floating recording pill, AI cleanup, works in any app, plus Hinglish, Android and Linux support, and it is open source.
+</details>
+
+<details><summary><b>Does it work offline?</b></summary>
+No. Speech recognition runs on Groq. Your recordings are saved encrypted on your device and retried automatically when the internet is back.
+</details>
+
+<details><summary><b>Is my voice or screen sent anywhere?</b></summary>
+Only to Groq, using your own key, and only when you dictate or tap Understand screen. Wispr never reads what you type and never sends data on its own.
+</details>
+
+<details><summary><b>Linux: it copies but does not paste.</b></summary>
+Auto-paste works on X11. On Wayland the text is copied and you press `Ctrl+V`.
+</details>
+
+<details><summary><b>macOS asks for permissions.</b></summary>
+Allow Microphone, Accessibility (to paste into other apps) and Screen Recording (only for Understand screen) in System Settings → Privacy & Security.
+</details>
+
+<sub>Keywords: Wispr Flow alternative, free voice typing, speech to text, dictation app, Hinglish voice typing, Hindi voice typing, Whisper, Groq, Windows, macOS, Linux, Android, open source.</sub>
+
+---
+
+## Features
+
 
 - **Bubble over every keyboard.** Tap the orange orb, talk, tap ✓. Text is typed where your cursor is (✕ cancels).
 - **Never deletes your notes.** Wispr only *adds* text. It never replaces what's already in Notes, Keep, Docs or Word.
