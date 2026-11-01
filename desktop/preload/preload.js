@@ -31,7 +31,7 @@ function makeRecorder() {
       const buf = new Uint8Array(an.fftSize);
       timer = setInterval(() => {
         an.getByteTimeDomainData(buf);
-        lvl = buf.reduce((m, v) => Math.max(m, Math.abs(v - 128)), 0) / 128;
+        lvl = Math.sqrt(buf.reduce((n, v) => n + ((v - 128) / 128) ** 2, 0) / buf.length); // RMS 0..1
       }, 50);
       rec = new MediaRecorder(s, { mimeType: "audio/webm;codecs=opus" });
       rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);

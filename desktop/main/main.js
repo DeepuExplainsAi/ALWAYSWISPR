@@ -61,7 +61,7 @@ function togglePanel() {
 }
 
 function makeBubble() {
-  bubbleWin = make("bubble", "bubble.html", { width: 340, height: 56, frame: false, transparent: true, focusable: false, alwaysOnTop: true, skipTaskbar: true, resizable: false, hasShadow: false });
+  bubbleWin = make("bubble", "bubble.html", { width: 200, height: 44, backgroundColor: "#00000000", frame: false, transparent: true, focusable: false, alwaysOnTop: true, skipTaskbar: true, resizable: false, hasShadow: false });
   bubbleWin.setAlwaysOnTop(true, "screen-saver");
   bubbleWin.setIgnoreMouseEvents(false);
 }
@@ -69,8 +69,9 @@ function makeBubble() {
 function bubble(state, msg) {
   if (!st.bool("bubble") || !bubbleWin) return;
   if (state === "hide") return bubbleWin.hide();
+  const w = state === "rec" ? 200 : Math.min(380, Math.max(150, 90 + String(msg || "").length * 7));
   const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
-  bubbleWin.setPosition(Math.round(d.x + (d.width - 340) / 2), Math.round(d.y + d.height - 56 - 28));
+  bubbleWin.setBounds({ x: Math.round(d.x + (d.width - w) / 2), y: Math.round(d.y + d.height - 44 - 36), width: w, height: 44 });
   bubbleWin.webContents.send("bubble", state, msg);
   bubbleWin.showInactive();
 }
@@ -78,8 +79,14 @@ function bubble(state, msg) {
 // ---------- dictation by shortcut ----------
 function setPhase(p) {
   phase = p;
-  if (p === "rec") globalShortcut.register("Escape", () => cancelDictation());
-  else globalShortcut.unregister("Escape");
+  // while recording: Esc cancels, Enter stops and types (the pill never takes focus, so these are global)
+  if (p === "rec") {
+    globalShortcut.register("Escape", () => cancelDictation());
+    globalShortcut.register("Return", () => toggleDictation());
+  } else {
+    globalShortcut.unregister("Escape");
+    globalShortcut.unregister("Return");
+  }
 }
 
 function toggleDictation() {

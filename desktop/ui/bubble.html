@@ -4,39 +4,65 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <style>
 html,body{margin:0;height:100%;background:transparent;overflow:hidden;font:600 13px system-ui,sans-serif;-webkit-user-select:none}
-#pill{position:absolute;inset:8px;display:flex;align-items:center;gap:8px;padding:0 8px;border-radius:999px;background:#17140f;color:#fff;border:1px solid #ff8a1f66;box-shadow:0 6px 24px rgba(0,0,0,.45)}
-button{flex:none;width:32px;height:32px;border:0;border-radius:50%;color:#fff;font-size:16px;cursor:pointer}
+#pill{position:absolute;inset:0;display:flex;align-items:center;gap:6px;padding:0 6px;border-radius:999px;background:#17140f;color:#fff;box-shadow:inset 0 0 0 1px #ff8a1f55}
+button{flex:none;width:30px;height:30px;border:0;border-radius:50%;color:#fff;font-size:14px;line-height:1;cursor:pointer;transition:transform .15s,filter .15s}
+button:hover{filter:brightness(1.2)}button:active{transform:scale(.92)}
 #no{background:#3a352c}
 #ok{background:linear-gradient(#ff9a3d,#e85d04)}
-canvas{flex:1;min-width:0;height:32px}
-#msg{flex:1;min-width:0;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-[data-s=work] #msg::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border:2px solid #ff8a1f;border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite}
+canvas{flex:1;min-width:0;height:30px}
+#msg{flex:1;min-width:0;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 8px}
+[data-s=work] #msg::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border:2px solid #ff8a1f;border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:-1px}
 [data-s=err] #msg{color:#ffb4a8}
 [data-s=rec] #msg,[data-s=work] canvas,[data-s=work] button,[data-s=err] canvas,[data-s=err] button{display:none}
 @keyframes s{to{transform:rotate(360deg)}}
 </style>
 <div id="pill" data-s="idle">
   <button id="no" aria-label="Cancel">✕</button>
-  <canvas id="w" width="360" height="64"></canvas>
+  <canvas id="w"></canvas>
   <span id="msg"></span>
   <button id="ok" aria-label="Write it">✓</button>
 </div>
 <script>
 const B = window.WisprBubble, pill = document.getElementById("pill"), msg = document.getElementById("msg");
-const cv = document.getElementById("w"), g = cv.getContext("2d"), N = 36, lv = new Array(N).fill(0);
+const cv = document.getElementById("w"), g = cv.getContext("2d");
 document.getElementById("no").onclick = () => B.click("cancel");
 document.getElementById("ok").onclick = () => B.click("stop");
-B.on((s, m) => { pill.dataset.s = s; msg.textContent = m || ""; lv.fill(0); if (s === "rec") frame(); });
-function frame() {
-  if (pill.dataset.s !== "rec") return;
-  lv.shift(); lv.push(Math.min(1, B.level() * 3));
-  g.clearRect(0, 0, cv.width, cv.height);
-  g.fillStyle = "#ff8a1f";
-  const gap = cv.width / N;
-  lv.forEach((v, i) => {
-    const h = 6 + v * (cv.height - 8);
-    g.fillRect(i * gap + 2, (cv.height - h) / 2, gap - 5, h);
-  });
-  requestAnimationFrame(frame);
+
+const BARS = 15, bars = new Array(BARS).fill(0);
+let level = 0, raf = 0, last = 0;
+
+function size() {
+  const r = devicePixelRatio || 1, b = cv.getBoundingClientRect();
+  cv.width = Math.max(1, Math.round(b.width * r)); cv.height = Math.round(30 * r);
 }
+B.on((s, m) => {
+  pill.dataset.s = s; msg.textContent = m || ""; msg.title = m || "";
+  if (s === "rec") { bars.fill(0); level = 0; size(); cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+});
+
+// Smooth voice meter: one slowly eased level (fast up, slow down) drives bars shaped like a soft hill,
+// each bar riding its own gentle sine so it flows like a wave instead of jittering.
+function frame(now) {
+  if (pill.dataset.s !== "rec") return;
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const raw = Math.min(1, Math.sqrt(B.level()) * 1.7);
+  level += (raw - level) * (raw > level ? 1 - Math.exp(-dt * 14) : 1 - Math.exp(-dt * 4));
+  const t = now / 1000, H = cv.height, W = cv.width, r = devicePixelRatio || 1;
+  g.clearRect(0, 0, W, H);
+  const gap = W / BARS, bw = Math.max(2 * r, gap * 0.46);
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#ffc07a"); grad.addColorStop(.5, "#ff8a1f"); grad.addColorStop(1, "#e85d04");
+  g.fillStyle = grad;
+  for (let i = 0; i < BARS; i++) {
+    const x = (i + .5) / BARS;
+    const hill = Math.sin(Math.PI * x) ** 1.3;                         // taller in the middle
+    const flow = .55 + .45 * Math.sin(t * 3.2 - i * .55);              // travelling ripple
+    const target = 0.12 + level * hill * flow * 0.88;                  // 0.12 = calm idle line
+    bars[i] += (target - bars[i]) * (1 - Math.exp(-dt * 16));
+    const h = Math.max(3 * r, bars[i] * H), y = (H - h) / 2, cx = i * gap + (gap - bw) / 2;
+    g.beginPath(); g.roundRect(cx, y, bw, h, bw / 2); g.fill();
+  }
+  raf = requestAnimationFrame(frame);
+}
+addEventListener("resize", size);
 </script>
