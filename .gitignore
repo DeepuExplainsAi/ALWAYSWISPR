@@ -11,3 +11,5 @@ signing/
 desktop/node_modules/
 desktop/dist/
 desktop/renderer/
+
+!desktop/build/
