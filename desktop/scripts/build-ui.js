@@ -54,7 +54,7 @@ function patchPanel(h) {
 function build() {
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
-  const read = (f) => fs.readFileSync(path.join(WEB, f), "utf8");
+  const read = (f) => fs.readFileSync(path.join(WEB, f), "utf8").replace(/\r\n/g, "\n");
   fs.writeFileSync(path.join(OUT, "index.html"), patchIndex(read("index.html")));
   fs.writeFileSync(path.join(OUT, "panel.html"), patchPanel(read("panel.html")));
   fs.copyFileSync(path.join(UI, "bubble.html"), path.join(OUT, "bubble.html"));

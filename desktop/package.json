@@ -23,6 +23,7 @@
   },
   "build": {
     "appId": "com.deepugupta.wispr.desktop",
+    "npmRebuild": false,
     "productName": "Wispr",
     "artifactName": "Wispr-by-Deepu-Gupta-${version}-${os}-${arch}.${ext}",
     "copyright": "Copyright 2026 Deepu Gupta. Apache-2.0",

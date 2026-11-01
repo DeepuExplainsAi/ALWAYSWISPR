@@ -8,7 +8,7 @@ const SRC = path.join(__dirname, "../../app/src/main/java/com/deepugupta/wispr/P
 const OUT = path.join(__dirname, "../main/prompts.generated.js");
 
 function generate() {
-  const kt = fs.readFileSync(SRC, "utf8");
+  const kt = fs.readFileSync(SRC, "utf8").replace(/\r\n/g, "\n");
   const start = kt.indexOf("object Prompts {") + "object Prompts {".length;
   const end = kt.indexOf("/** How the assistant should write");
   if (start < 20 || end < 0) throw new Error("Prompts.kt layout changed: update scripts/port-prompts.js");
@@ -27,7 +27,7 @@ function generate() {
 if (require.main === module) {
   const out = generate();
   if (process.argv.includes("--check")) {
-    if (!fs.existsSync(OUT) || fs.readFileSync(OUT, "utf8") !== out) { console.error("prompts.generated.js is stale: run node scripts/port-prompts.js"); process.exit(1); }
+    if (!fs.existsSync(OUT) || fs.readFileSync(OUT, "utf8").replace(/\r\n/g, "\n") !== out) { console.error("prompts.generated.js is stale: run node scripts/port-prompts.js"); process.exit(1); }
   } else fs.writeFileSync(OUT, out);
 }
 module.exports = { generate };
