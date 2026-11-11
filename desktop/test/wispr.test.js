@@ -129,3 +129,37 @@ test("key listener: chords fire once per press, extra modifiers and repeats do n
   assert.deepStrictEqual(Hook.parse("Control+Shift+Space", { Space: 57 }), { mods: ["ctrl", "shift"], code: 57 });
   assert.strictEqual(Hook.parse("Control+Shift+Bogus", { Space: 57 }), null);
 });
+
+test("English is never forced on Whisper (it would translate Hindi speech into English)", async () => {
+  let form;
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (_u, o) => { form = o.body; return { ok: true, status: 200, text: async () => JSON.stringify({ text: "ok" }) }; };
+  try {
+    await Groq.transcribe("gsk_" + "a".repeat(30), Buffer.from("x"), "whisper-large-v3", "en", "", "audio/webm");
+    assert.strictEqual(form.get("language"), null);
+    await Groq.transcribe("gsk_" + "a".repeat(30), Buffer.from("x"), "whisper-large-v3", "hinglish", "", "audio/webm");
+    assert.strictEqual(form.get("language"), "hi");
+  } finally { globalThis.fetch = orig; }
+});
+
+test("model chains follow Groq's live list and fall back when a pick is gone", () => {
+  const Models = require("../main/models");
+  Models.setLive(new Set(["whisper-large-v3-turbo", "openai/gpt-oss-20b", "whisper-large-v4"]));
+  assert.deepStrictEqual(Models.sttChain("whisper-large-v3"), ["whisper-large-v3-turbo", "whisper-large-v4"]);
+  assert.deepStrictEqual(Models.textChain("openai/gpt-oss-120b"), ["openai/gpt-oss-20b"]);
+  const list = JSON.parse(Models.json(new Set(["whisper-large-v4", "newco/chat-1", "some-guard"])));
+  assert.ok(list.find((m) => m.id === "whisper-large-v4" && m.kind === "stt"));
+  assert.ok(list.find((m) => m.id === "newco/chat-1" && m.kind === "text"));
+  assert.ok(!list.find((m) => m.id === "some-guard"));
+  Models.setLive(new Set(["unrelated"]));            // nothing matches: keep the full chain instead of an empty one
+  assert.ok(Models.sttChain("whisper-large-v3").length >= 2);
+  Models.setLive(null);
+});
+
+test("mac updater picks the zip for this CPU from latest-mac.yml", () => {
+  const { pickZip } = require("../main/macupdate");
+  const yml = "version: 4.1.8\nfiles:\n  - url: Wispr-4.1.8-mac-x64.zip\n    sha512: AAA\n    size: 10\n  - url: Wispr-4.1.8-mac-arm64.zip\n    sha512: BBB\n    size: 20\n  - url: Wispr-4.1.8-mac-arm64.dmg\n    sha512: CCC\n    size: 30\npath: x.zip\nsha512: AAA\n";
+  assert.deepStrictEqual(pickZip(yml, "arm64"), { url: "Wispr-4.1.8-mac-arm64.zip", sha512: "BBB", size: 20 });
+  assert.strictEqual(pickZip(yml, "x64").sha512, "AAA");
+  assert.strictEqual(pickZip("files: []", "arm64"), null);
+});

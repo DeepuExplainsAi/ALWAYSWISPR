@@ -91,7 +91,8 @@ async function transcribe(key, audio, model, lang, prompt, mime = "audio/webm") 
   f.append("response_format", "json");
   f.append("temperature", "0");
   // Whisper has no Odia code; "hinglish" is sent as Hindi (best recognition) and romanised afterwards.
-  const wl = lang === "auto" || lang === "or" ? null : lang === "hinglish" ? "hi" : lang;
+  // English is NOT forced: with language=en Whisper translates Hindi speech into English instead of writing what was said.
+  const wl = lang === "auto" || lang === "or" || lang === "en" ? null : lang === "hinglish" ? "hi" : lang;
   if (wl) f.append("language", wl);
   if (prompt && prompt.trim()) f.append("prompt", prompt);
   const body = await exec("audio/transcriptions", { method: "POST", headers: auth(key), body: f });

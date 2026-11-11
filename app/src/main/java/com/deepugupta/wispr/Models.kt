@@ -57,11 +57,21 @@ object Models {
     fun find(id: String): M? = ALL.firstOrNull { it.id == id }
     fun isVision(id: String): Boolean = find(id)?.vision == true
 
-    /** Chain to try: the user's pick first, then safe defaults (skips duplicates). */
-    fun sttChain(chosen: String): List<String> = listOf(chosen, DEFAULT_STT, FAST_STT).distinct()
-    fun textChain(chosen: String): List<String> = listOf(chosen, DEFAULT_LLM, FAST_LLM).distinct()
+    /** Ids Groq serves for this key right now (null until fetched). Chains skip anything Groq no longer lists. */
+    @Volatile var liveIds: Set<String>? = null
+        private set
+    fun setLive(ids: Set<String>?) { liveIds = ids?.takeIf { it.isNotEmpty() } }
+    private fun usable(l: List<String>): List<String> {
+        val all = l.distinct()
+        return all.filter { liveIds?.contains(it) != false }.ifEmpty { all }
+    }
+
+    /** Chain to try: the user's pick first, then safe defaults (skips duplicates and models Groq no longer serves). */
+    fun sttChain(chosen: String): List<String> = usable(listOf(chosen, DEFAULT_STT, FAST_STT))
+    fun textChain(chosen: String): List<String> =
+        usable(listOf(chosen, DEFAULT_LLM, FAST_LLM) + ALL.filter { it.kind == Kind.TEXT && !it.web }.map { it.id })
     fun visionChain(chosen: String): List<String> =
-        (listOf(chosen).filter { isVision(it) } + ALL.filter { it.vision }.map { it.id }).distinct()
+        usable(listOf(chosen).filter { isVision(it) } + ALL.filter { it.vision }.map { it.id })
 
     /** Ids that are not chat/speech models (safety, TTS, prompt guards). Hidden from the pickers. */
     private val NOT_CHAT = Regex("guard|safeguard|orpheus|tts|whisper|embed", RegexOption.IGNORE_CASE)

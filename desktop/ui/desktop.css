@@ -33,6 +33,16 @@
   .row .field{flex:none;width:11rem}
   .sheet-in > .sheet-head,.sheet-in > .legal{grid-column:1/-1}
 }
+/* update banner */
+#updCard{display:none!important}
+#updBanner{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:4px 16px;background:var(--accent-soft);border-bottom:1px solid color-mix(in srgb,var(--accent) 40%,transparent);font-size:.875rem;font-weight:700;color:var(--ink)}
+#updBanner[hidden]{display:none}
+#updBanner .btn.sm{min-height:30px;padding:0 14px}
+#updBanner #ubProg{width:140px;height:6px;border-radius:99px;background:color-mix(in srgb,var(--accent) 25%,transparent);overflow:hidden}
+#updBanner #ubProg b{display:block;height:100%;background:var(--accent);transition:width .2s}
+#updBanner #ubProg.indet b{animation:ubpulse 1.2s ease-in-out infinite}
+@keyframes ubpulse{50%{opacity:.35}}
+body.hasUpd .app{padding-top:44px}
 @media (min-width:1280px){
   .app{grid-template-columns:340px minmax(0,1fr);padding-inline:var(--space-2xl)}
 }

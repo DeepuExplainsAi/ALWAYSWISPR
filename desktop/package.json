@@ -1,7 +1,7 @@
 {
   "name": "wispr-desktop",
   "productName": "Wispr",
-  "version": "4.1.7",
+  "version": "4.1.8",
   "description": "Wispr by Deepu Gupta for Windows, macOS and Linux: speak in Hinglish, Hindi, English or 25+ languages and it types into any app.",
   "author": "Deepu Gupta",
   "license": "Apache-2.0",
@@ -14,11 +14,11 @@
     "dist": "node scripts/build-ui.js && electron-builder"
   },
   "dependencies": {
-    "electron-updater": "^6.8.0",
+    "electron-updater": "^6.8.11",
     "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
-    "electron": "^45.2.1",
+    "electron": "^45.3.0",
     "electron-builder": "^26.18.0"
   },
   "build": {

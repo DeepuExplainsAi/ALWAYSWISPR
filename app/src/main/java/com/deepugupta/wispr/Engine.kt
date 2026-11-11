@@ -73,6 +73,7 @@ object Engine {
         try {
             val key = st.apiKey
             if (key.isBlank()) throw GroqError("Add your Groq key in the Wispr app first.", false, auth = true)
+            syncModels(key)
             val item = st.item(id) ?: throw GroqError("That recording is gone.", false)
             st.patchItem(id) { it.put("status", "pending"); it.remove("err") }
             var raw = item.optString("raw", "")
@@ -111,6 +112,14 @@ object Engine {
         return x in setOf("thanks for watching", "thank you for watching", "you", "subtitles by the amara.org community", "please subscribe")
     }
 
+    @Volatile private var syncedAt = 0L
+
+    /** Keeps the model list in step with what Groq serves (at most every 6 hours; a failure changes nothing). */
+    internal fun syncModels(key: String) {
+        if (System.currentTimeMillis() - syncedAt < 6 * 3600_000L) return
+        try { Models.setLive(Groq.listModels(key)); syncedAt = System.currentTimeMillis() } catch (e: Exception) { }
+    }
+
     /** Speech model with automatic fallback if Groq removes the chosen one. */
     internal fun transcribeAny(st: Store, key: String, audio: ByteArray, lang: String, prompt: String?): String {
         val chosen = st.str("stt")
@@ -138,7 +147,7 @@ object Engine {
         val style = when (lang) {
             "hinglish" -> Prompts.HINGLISH_HINT
             "hi" -> Prompts.HI_HINT
-            "auto" -> Prompts.AUTO_HINT
+            "auto", "en" -> Prompts.AUTO_HINT
             else -> null
         }
         val vocab = st.vocabulary().take(40).joinToString(", ")

@@ -131,7 +131,8 @@ object Groq {
             .addFormDataPart("response_format", "json")
             .addFormDataPart("temperature", "0")
         // Whisper has no Odia code; "hinglish" is sent as Hindi (best recognition) and romanised afterwards.
-        val wl = when (lang) { "auto", "or" -> null; "hinglish" -> "hi"; else -> lang }
+        // English is not forced either: language=en makes Whisper translate Hindi speech into English.
+        val wl = when (lang) { "auto", "or", "en" -> null; "hinglish" -> "hi"; else -> lang }
         if (wl != null) b.addFormDataPart("language", wl)
         if (!prompt.isNullOrBlank()) b.addFormDataPart("prompt", prompt)
         val req = Request.Builder().url(BASE + "audio/transcriptions")

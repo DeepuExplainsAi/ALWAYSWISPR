@@ -235,6 +235,7 @@ class Panel(private val svc: BubbleService) {
                     if (key.isBlank()) throw GroqError("Add your Groq key in the Wispr app first.", false, auth = true)
                     val ids = Groq.listModels(key)
                     live = ids
+                    Models.setLive(ids)
                     cb(id, true, Models.json(ids))
                 } catch (e: GroqError) {
                     cb(id, false, e.message ?: "Couldn't load models")
