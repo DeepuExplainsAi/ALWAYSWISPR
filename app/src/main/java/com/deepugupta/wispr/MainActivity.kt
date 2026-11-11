@@ -378,7 +378,7 @@ class MainActivity : Activity() {
 
         /** Model catalog (all Groq free-plan models) for the Settings pickers. */
         @JavascriptInterface
-        fun models(): String = Models.json(null)
+        fun models(): String = Models.json(Models.liveIds)
 
         // ---------- in-app updates (GitHub Releases) ----------
         @JavascriptInterface

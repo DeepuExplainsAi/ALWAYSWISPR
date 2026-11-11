@@ -15,6 +15,7 @@ const Models = require("./models");
 const Updater = require("./updater");
 const { paste } = require("./paste");
 const Hook = require("./hook");
+const MacUpdate = require("./macupdate");
 
 const ROOT = path.join(__dirname, "..");
 const KEY_RE = /^gsk_[A-Za-z0-9_-]{20,200}$/;
@@ -75,6 +76,7 @@ function makeBubble() {
   bubbleWin.setAlwaysOnTop(true, "screen-saver");
   if (MAC) bubbleWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   bubbleWin.setIgnoreMouseEvents(false);
+  watchPillMoves(bubbleWin);
   return bubbleWin;
 }
 
@@ -87,6 +89,29 @@ function toBubble(...args) {
   else wc.send(...args);
 }
 
+// The orb can be dragged anywhere (up, down, sideways); the place is remembered. The tray menu puts it back.
+let programmatic = 0, moveTimer;
+const PILL_H = 44;
+
+function pillHome() {
+  let saved = null;
+  try { saved = JSON.parse(st.str("pillPos")); } catch {}
+  if (saved && screen.getAllDisplays().some((d) => saved.cx >= d.workArea.x && saved.cx <= d.workArea.x + d.workArea.width && saved.y >= d.workArea.y && saved.y <= d.workArea.y + d.workArea.height - PILL_H + 20)) return saved;
+  const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  return { cx: Math.round(d.x + d.width / 2), y: Math.round(d.y + d.height - PILL_H - 36) };
+}
+
+function watchPillMoves(w) {
+  w.on("move", () => {
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => {
+      if (Date.now() - programmatic < 600 || w.isDestroyed() || !w.isVisible()) return;
+      const b = w.getBounds();
+      st.put("pillPos", JSON.stringify({ cx: Math.round(b.x + b.width / 2), y: b.y }));
+    }, 300);
+  });
+}
+
 function bubble(state, msg) {
   if (!st.bool("bubble")) return;
   clearTimeout(hideTimer);
@@ -96,8 +121,9 @@ function bubble(state, msg) {
     return;
   }
   const w = state === "rec" ? 200 : Math.min(380, Math.max(150, 90 + String(msg || "").length * 7));
-  const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
-  liveBubble().setBounds({ x: Math.round(d.x + (d.width - w) / 2), y: Math.round(d.y + d.height - 44 - 36), width: w, height: 44 });
+  const home = pillHome();
+  programmatic = Date.now();
+  liveBubble().setBounds({ x: Math.round(home.cx - w / 2), y: home.y, width: w, height: 44 });
   toBubble("bubble", state, msg);
   bubbleWin.showInactive();
   bubbleWin.setAlwaysOnTop(true, "screen-saver"); // some OS / full-screen apps drop the flag when the window is re-shown
@@ -147,8 +173,11 @@ function endDictation(msg, err) {
 async function finishDictation(buf, mime) {
   const r = await Engine.submit(st, Buffer.from(buf), mime, (m) => bubble("work", m));
   if (!r.ok) return endDictation(r.text, true);
+  // a click on the pill can pull the focus to Wispr (macOS, some Linux desktops): hand it back to the app the user was typing in
+  if (MAC && bubbleWin && !bubbleWin.isDestroyed() && bubbleWin.isFocused()) { app.hide(); await new Promise((r) => setTimeout(r, 150)); }
   const sent = await paste(r.text, { keepClipboard: st.bool("autoCopy") });
-  endDictation(sent ? "" : "Copied. Press Ctrl+V to paste.", !sent);
+  if (!sent && MAC && !perms().paste) requestPerm("paste");
+  endDictation(sent ? "" : MAC && !perms().paste ? "Copied. Allow Accessibility for Wispr, then it types by itself." : "Copied. Press Ctrl+V to paste.", !sent);
 }
 
 // ---------- shortcuts ----------
@@ -267,8 +296,10 @@ async function understand(wc, id) {
 
 // ---------- updates ----------
 // Windows installer and Linux AppImage update inside the app (download, verify, restart into the new version).
-// macOS builds are not code-signed (the OS refuses silent updates) and .deb / portable have no updater: those open the release page.
-const canSelfUpdate = () => app.isPackaged && ((process.platform === "win32" && !process.env.PORTABLE_EXECUTABLE_FILE) || (process.platform === "linux" && !!process.env.APPIMAGE));
+// macOS (not code-signed, so electron-updater cannot be used) swaps the .app itself, see macupdate.js.
+// Only .deb and the Windows portable exe have no way to replace themselves: those open the release page.
+const canSelfUpdate = () => app.isPackaged && ((process.platform === "win32" && !process.env.PORTABLE_EXECUTABLE_FILE) || (process.platform === "linux" && !!process.env.APPIMAGE) || (MAC && !!MacUpdate.appBundle()));
+let macApp = "";
 let updater;
 
 function pushUpdate() {
@@ -294,10 +325,19 @@ function selfUpdater() {
 async function downloadUpdate() {
   if (!upd.tag || ["downloading", "ready"].includes(upd.state)) return;
   setUpd({ state: "downloading", progress: 0 });
+  const base = `https://github.com/${Updater.REPO}/releases/download/${upd.tag}/`;
+  if (MAC) {
+    try {
+      macApp = await MacUpdate.download(base, (p) => p !== upd.progress && setUpd({ state: "downloading", progress: p }));
+      return setUpd({ state: "ready", progress: 100 });
+    } catch (e) {
+      return setUpd({ state: "error", msg: `Couldn't download the update (${e.message || "network"}). Try again.` });
+    }
+  }
   try {
     const u = selfUpdater();
     // Pin to the release the check found, so a newer APK-only release can never hide the installer.
-    u.setFeedURL({ provider: "generic", url: `https://github.com/${Updater.REPO}/releases/download/${upd.tag}/` });
+    u.setFeedURL({ provider: "generic", url: base });
     const r = await u.checkForUpdates();
     if (!r?.updateInfo || !Updater.newer(r.updateInfo.version, VERSION)) return setUpd({ state: "error", msg: "This release has no installer for your system yet. Try again in a few minutes." });
     await u.downloadUpdate();
@@ -309,6 +349,10 @@ async function downloadUpdate() {
 function installUpdate() {
   setUpd({ state: "installing" });
   quitting = true; // let the hidden windows close
+  if (MAC) {
+    try { MacUpdate.install(macApp); } catch (e) { quitting = false; return setUpd({ state: "error", msg: `Couldn't install the update (${e.message}).` }); }
+    return void setTimeout(() => app.quit(), 300);
+  }
   setTimeout(() => { try { selfUpdater().quitAndInstall(true, true); } catch (e) { quitting = false; setUpd({ state: "error", msg: "Couldn't start the installer." }); } }, 400);
 }
 
@@ -332,6 +376,21 @@ async function checkUpdate(manual) {
   } catch (e) {
     setUpd({ state: "error", msg: e.message || "Couldn't check", lastCheck: Date.now() });
   }
+}
+
+// ---------- Groq models: follow what Groq serves right now ----------
+/** Asks Groq which models this key can use and lets every call, picker and fallback chain follow that list. */
+async function syncModels() {
+  if (!st.apiKey) return null;
+  try {
+    live = await Groq.listModels(st.apiKey);
+    Models.setLive(live);
+    // a saved pick that Groq no longer serves moves to the default of its kind
+    const fix = (k, def) => { const v = st.str(k); if (live.size && !live.has(v) && live.has(def)) st.put(k, def); };
+    fix("stt", Models.DEFAULT_STT); fix("llm", Models.DEFAULT_LLM); fix("chatModel", Models.DEFAULT_LLM); fix("visionModel", Models.DEFAULT_VISION);
+    for (const w of [mainWin, panelWin]) w?.webContents.send("js", "window.WisprModelsChanged&&WisprModelsChanged()");
+  } catch {}
+  return live;
 }
 
 // ---------- bridge (same method names as the Android WebView bridges) ----------
@@ -366,7 +425,7 @@ const bridge = {
     updateState: pushUpdate,
     checkUpdate: () => { checkUpdate(true); },
     startUpdate,
-    cancelUpdate: () => { try { updater?.cancellationToken?.cancel(); } catch {} setUpd({ state: "available", progress: 0 }); },
+    cancelUpdate: () => { try { updater?.cancellationToken?.cancel(); } catch {} if (upd.state !== "ready") setUpd({ state: "available", progress: 0 }); },
     skipUpdate: (v) => { st.put("skippedUpdate", String(v).slice(0, 40)); },
     openReleasePage: () => { shell.openExternal(upd.page || `https://github.com/${Updater.REPO}/releases`); },
     async verifyKey(k, id, wc) {
@@ -376,7 +435,7 @@ const bridge = {
       if (!KEY_RE.test(key)) return done(false, `This key looks cut off or has extra characters (${key.length} chars). Copy it again from console.groq.com/keys.`);
       try {
         await Groq.verify(key);
-        st.apiKey = key; done(true, "ok");
+        st.apiKey = key; done(true, "ok"); syncModels();
       } catch (e) {
         if (e instanceof GroqError && e.retryable) { st.apiKey = key; done(true, "saved-unverified"); } // offline / Groq busy: first dictation re-checks
         else done(false, e.message || "Couldn't verify the key");
@@ -401,7 +460,7 @@ const bridge = {
     async refreshModels(id, wc) {
       const done = reply(wc, id);
       if (!st.apiKey) return done(false, "Add your Groq key in the Wispr app first.");
-      try { live = await Groq.listModels(st.apiKey); done(true, Models.json(live)); } catch (e) { done(false, e.message || "Couldn't load models"); }
+      try { live = await Groq.listModels(st.apiKey); Models.setLive(live); done(true, Models.json(live)); } catch (e) { done(false, e.message || "Couldn't load models"); }
     },
     async chat(text, id, wc) {
       const r = await Assistant.chat(st, text, status(wc, id));
@@ -447,6 +506,7 @@ function makeTray() {
     { label: "Dictate", click: toggleDictation },
     { label: "Mini window", click: togglePanel },
     { label: "Open Wispr", click: showMain },
+    { label: "Reset orb position", click: () => st.put("pillPos", "") },
     { type: "separator" },
     { label: "Quit", click: () => app.quit() },
   ]));
@@ -476,6 +536,9 @@ if (gotLock) app.whenReady().then(() => {
   if (!process.argv.includes("--hidden") || !st.apiKey) showMain();
   for (const ev of ["resume", "unlock-screen"]) powerMonitor.on(ev, () => setTimeout(rebind, 1500));
   screen.on("display-added", () => bubbleWin?.hide());
-  setTimeout(() => checkUpdate(false), 8000);
-  setInterval(() => checkUpdate(false), 12 * 3600 * 1000);
+  syncModels();
+  setInterval(syncModels, 6 * 3600 * 1000);
+  setTimeout(() => checkUpdate(false), 3000);
+  setInterval(() => checkUpdate(false), 6 * 3600 * 1000);
+  powerMonitor.on("resume", () => { syncModels(); setTimeout(() => checkUpdate(false), 5000); });
 });

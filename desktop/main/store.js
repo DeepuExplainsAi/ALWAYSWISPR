@@ -17,6 +17,7 @@ const DEF = {
   // desktop only
   hotkey: IS_MAC ? "Command+Shift+Space" : "Control+Shift+Space",
   panelKey: IS_MAC ? "Command+Shift+W" : "Control+Shift+W",
+  pillPos: "", // where the user left the orb
   autostart: true, // a dictation tool must be there after every restart
 };
 

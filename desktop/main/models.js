@@ -27,24 +27,29 @@ const DEAD = new Set([
   "moonshotai/kimi-k2-instruct-0905", "distil-whisper-large-v3-en",
 ]);
 
+/** Ids Groq lists for this key right now (null until fetched). Chains skip anything Groq no longer serves. */
+let live = null;
+const setLive = (ids) => { live = ids && ids.size ? ids : null; };
+const usable = (list) => { const l = [...new Set(list)]; const ok = l.filter((id) => !live || live.has(id)); return ok.length ? ok : l; };
+
 const find = (id) => ALL.find((x) => x.id === id);
 const isVision = (id) => find(id)?.vision === true;
-const uniq = (a) => [...new Set(a)];
-const sttChain = (chosen) => uniq([chosen, DEFAULT_STT, FAST_STT]);
-const textChain = (chosen) => uniq([chosen, DEFAULT_LLM, FAST_LLM]);
-const visionChain = (chosen) => uniq([chosen].filter(isVision).concat(ALL.filter((x) => x.vision).map((x) => x.id)));
+const newStt = () => (live ? [...live].filter((id) => /whisper/i.test(id) && !find(id) && !DEAD.has(id)).sort().reverse() : []);
+const sttChain = (chosen) => usable([chosen, DEFAULT_STT, FAST_STT, ...newStt()]);
+const textChain = (chosen) => usable([chosen, DEFAULT_LLM, FAST_LLM, ...ALL.filter((x) => x.kind === "text" && !x.web).map((x) => x.id)]);
+const visionChain = (chosen) => usable([chosen].filter(isVision).concat(ALL.filter((x) => x.vision).map((x) => x.id)));
 
 /** Ids that are not chat/speech models (safety, TTS, prompt guards). Hidden from the pickers. */
-const NOT_CHAT = /guard|safeguard|orpheus|tts|whisper|embed/i;
+const NOT_CHAT = /guard|safeguard|orpheus|tts|embed/i;
 
 /** Catalog for the UI. `live` = ids from Groq's /models for this key (null if not fetched yet). */
 function json(live) {
   const out = ALL.map((x) => ({ ...x, live: live ? live.has(x.id) : true }));
   if (live) {
     [...live].filter((id) => !find(id) && !DEAD.has(id) && !NOT_CHAT.test(id)).sort().forEach((id) =>
-      out.push({ id, label: id.split("/").pop(), note: "New on Groq", kind: "text", preview: true, vision: false, web: false, live: true }));
+      out.push({ id, label: id.split("/").pop(), note: "New on Groq", kind: /whisper/i.test(id) ? "stt" : "text", preview: true, vision: false, web: false, live: true }));
   }
   return JSON.stringify(out);
 }
 
-module.exports = { ALL, DEFAULT_STT, FAST_STT, DEFAULT_LLM, FAST_LLM, DEFAULT_VISION, DEAD, find, isVision, sttChain, textChain, visionChain, json };
+module.exports = { setLive, ALL, DEFAULT_STT, FAST_STT, DEFAULT_LLM, FAST_LLM, DEFAULT_VISION, DEAD, find, isVision, sttChain, textChain, visionChain, json };

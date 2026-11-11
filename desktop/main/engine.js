@@ -69,7 +69,7 @@ async function transcribeAny(st, key, audio, lang, prompt, mime) {
  * This is the biggest accuracy win for fast speech. Whisper reads max ~224 tokens.
  */
 function whisperPrompt(st, lang) {
-  const style = { hinglish: P.HINGLISH_HINT, hi: P.HI_HINT, auto: P.AUTO_HINT }[lang];
+  const style = { hinglish: P.HINGLISH_HINT, hi: P.HI_HINT, auto: P.AUTO_HINT, en: P.AUTO_HINT }[lang];
   const vocab = st.vocabulary().slice(0, 40).join(", ");
   const p = [style, vocab && `Words: ${vocab}.`].filter(Boolean).join(" ");
   return p.slice(0, 600) || null;
