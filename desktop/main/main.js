@@ -14,12 +14,16 @@ const { GroqError } = Groq;
 const Models = require("./models");
 const Updater = require("./updater");
 const { paste } = require("./paste");
+const Hook = require("./hook");
 
 const ROOT = path.join(__dirname, "..");
 const KEY_RE = /^gsk_[A-Za-z0-9_-]{20,200}$/;
 const NOTICE = "Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. Open source under the Apache License, Version 2.0: you may use, modify and share it under that licence's terms. Provided \"as is\", without warranty of any kind.";
 const MAC = process.platform === "darwin";
 const VERSION = require("../package.json").version;
+
+// Wayland has no global shortcuts unless they go through the desktop portal.
+if (process.platform === "linux") app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
@@ -96,6 +100,8 @@ function bubble(state, msg) {
   liveBubble().setBounds({ x: Math.round(d.x + (d.width - w) / 2), y: Math.round(d.y + d.height - 44 - 36), width: w, height: 44 });
   toBubble("bubble", state, msg);
   bubbleWin.showInactive();
+  bubbleWin.setAlwaysOnTop(true, "screen-saver"); // some OS / full-screen apps drop the flag when the window is re-shown
+  bubbleWin.moveTop();
 }
 
 // ---------- dictation by shortcut ----------
@@ -103,8 +109,8 @@ function setPhase(p) {
   phase = p;
   // while recording: Esc cancels, Enter stops and types (the pill never takes focus, so these are global)
   if (p === "rec") {
-    globalShortcut.register("Escape", () => cancelDictation());
-    globalShortcut.register("Return", () => toggleDictation());
+    globalShortcut.register("Escape", act.cancel);
+    globalShortcut.register("Return", act.stop);
   } else {
     globalShortcut.unregister("Escape");
     globalShortcut.unregister("Return");
@@ -146,6 +152,10 @@ async function finishDictation(buf, mime) {
 }
 
 // ---------- shortcuts ----------
+// Every shortcut can arrive twice (OS shortcut + system-wide key listener): an action runs once per 350 ms.
+const once = (fn) => { let t = 0; return () => { const n = Date.now(); if (n - t > 350) { t = n; fn(); } }; };
+const act = { hotkey: once(() => toggleDictation()), panelKey: once(() => togglePanel()), cancel: once(() => cancelDictation()), stop: once(() => phase === "rec" && toggleDictation()) };
+
 function register(acc, fn) {
   try { return globalShortcut.register(acc, fn); } catch { return false; }
 }
@@ -153,8 +163,8 @@ function register(acc, fn) {
 function bindKeys() {
   globalShortcut.unregister(st.str("hotkey"));
   globalShortcut.unregister(st.str("panelKey"));
-  const a = register(st.str("hotkey"), toggleDictation);
-  const b = register(st.str("panelKey"), togglePanel);
+  const a = register(st.str("hotkey"), act.hotkey);
+  const b = register(st.str("panelKey"), act.panelKey);
   return a && b;
 }
 
@@ -166,9 +176,20 @@ function bindWithRetry(n = 0) {
   showMain();
 }
 
+/** Backup path for the shortcuts, active in every app. Needs Accessibility on macOS, X11 on Linux (not Wayland). */
+function startKeyListener() {
+  const wayland = process.platform === "linux" && !process.env.DISPLAY;
+  if (wayland || (MAC && !systemPreferences.isTrustedAccessibilityClient(false))) return;
+  Hook.start(
+    () => ({ hotkey: st.str("hotkey"), panelKey: st.str("panelKey"), ...(phase === "rec" ? { cancel: "Escape" } : {}) }),
+    (name) => act[name](),
+  );
+}
+
 function rebind() {
   globalShortcut.unregisterAll();
   bindWithRetry();
+  startKeyListener();
   setPhase(phase);
 }
 
@@ -178,8 +199,8 @@ function setShortcut(key, acc) {
   if (acc === old) return true;
   if (acc === st.str(key === "hotkey" ? "panelKey" : "hotkey")) return false;
   globalShortcut.unregister(old);
-  if (!register(acc, key === "hotkey" ? toggleDictation : togglePanel)) {
-    register(old, key === "hotkey" ? toggleDictation : togglePanel);
+  if (!register(acc, act[key])) {
+    register(old, act[key]);
     return false;
   }
   st.put(key, acc);
@@ -245,22 +266,72 @@ async function understand(wc, id) {
 }
 
 // ---------- updates ----------
+// Windows installer and Linux AppImage update inside the app (download, verify, restart into the new version).
+// macOS builds are not code-signed (the OS refuses silent updates) and .deb / portable have no updater: those open the release page.
+const canSelfUpdate = () => app.isPackaged && ((process.platform === "win32" && !process.env.PORTABLE_EXECUTABLE_FILE) || (process.platform === "linux" && !!process.env.APPIMAGE));
+let updater;
+
 function pushUpdate() {
   const o = { configured: true, current: VERSION, mode: st.str("updates"), skipped: st.str("skippedUpdate"), page: upd.page || `https://github.com/${Updater.REPO}/releases`, ...upd };
   mainWin?.webContents.send("js", `window.WisprUpdate&&WisprUpdate(${JSON.stringify(JSON.stringify(o))})`);
   return JSON.stringify(o);
 }
 
+const setUpd = (patch) => { upd = { ...upd, ...patch }; pushUpdate(); };
+
+/** Lazy: electron-updater is only loaded when an update is really going to be installed. */
+function selfUpdater() {
+  if (updater) return updater;
+  updater = require("electron-updater").autoUpdater;
+  updater.autoDownload = false;
+  updater.autoInstallOnAppQuit = true; // downloaded but not yet installed: the next normal quit installs it
+  updater.on("download-progress", (p) => setUpd({ state: "downloading", progress: Math.round(p.percent || 0) }));
+  updater.on("update-downloaded", () => setUpd({ state: "ready", progress: 100 }));
+  return updater;
+}
+
+/** Download the found release (checksum + size are verified by electron-updater against latest.yml). */
+async function downloadUpdate() {
+  if (!upd.tag || ["downloading", "ready"].includes(upd.state)) return;
+  setUpd({ state: "downloading", progress: 0 });
+  try {
+    const u = selfUpdater();
+    // Pin to the release the check found, so a newer APK-only release can never hide the installer.
+    u.setFeedURL({ provider: "generic", url: `https://github.com/${Updater.REPO}/releases/download/${upd.tag}/` });
+    const r = await u.checkForUpdates();
+    if (!r?.updateInfo || !Updater.newer(r.updateInfo.version, VERSION)) return setUpd({ state: "error", msg: "This release has no installer for your system yet. Try again in a few minutes." });
+    await u.downloadUpdate();
+  } catch (e) {
+    setUpd({ state: "error", msg: `Couldn't download the update (${e.message || "network"}). Try again.` });
+  }
+}
+
+function installUpdate() {
+  setUpd({ state: "installing" });
+  quitting = true; // let the hidden windows close
+  setTimeout(() => { try { selfUpdater().quitAndInstall(true, true); } catch (e) { quitting = false; setUpd({ state: "error", msg: "Couldn't start the installer." }); } }, 400);
+}
+
+function startUpdate() {
+  if (!canSelfUpdate()) return void shell.openExternal(upd.page || `https://github.com/${Updater.REPO}/releases`);
+  if (upd.state === "ready") installUpdate();
+  else downloadUpdate();
+}
+
 async function checkUpdate(manual) {
   if (!manual && st.str("updates") === "off") return;
-  upd = { ...upd, state: "checking" }; pushUpdate();
+  if (["downloading", "ready", "installing"].includes(upd.state)) return pushUpdate();
+  setUpd({ state: "checking" });
   try {
     const r = await Updater.check(VERSION);
-    upd = r ? { state: "available", latest: r.version, notes: r.notes, page: r.page, size: r.size, lastCheck: Date.now() } : { state: "uptodate", lastCheck: Date.now() };
+    if (!r) return setUpd({ state: "uptodate", lastCheck: Date.now() });
+    upd = { state: "available", latest: r.version, tag: r.tag, notes: r.notes, page: r.page, size: r.size, lastCheck: Date.now() };
+    pushUpdate();
+    if (!manual && !mainWin?.isVisible()) new Notification({ title: "Wispr", body: `Version ${r.version} is ready. Open Wispr to update.` }).show();
+    if (!manual && st.str("updates") === "auto" && canSelfUpdate()) downloadUpdate(); // ready in the background, one tap installs
   } catch (e) {
-    upd = { state: "error", msg: e.message || "Couldn't check", lastCheck: Date.now() };
+    setUpd({ state: "error", msg: e.message || "Couldn't check", lastCheck: Date.now() });
   }
-  pushUpdate();
 }
 
 // ---------- bridge (same method names as the Android WebView bridges) ----------
@@ -294,8 +365,8 @@ const bridge = {
     removeKey: () => { st.apiKey = ""; },
     updateState: pushUpdate,
     checkUpdate: () => { checkUpdate(true); },
-    startUpdate: () => { shell.openExternal(upd.page || `https://github.com/${Updater.REPO}/releases`); },
-    cancelUpdate: () => {},
+    startUpdate,
+    cancelUpdate: () => { try { updater?.cancellationToken?.cancel(); } catch {} setUpd({ state: "available", progress: 0 }); },
     skipUpdate: (v) => { st.put("skippedUpdate", String(v).slice(0, 40)); },
     openReleasePage: () => { shell.openExternal(upd.page || `https://github.com/${Updater.REPO}/releases`); },
     async verifyKey(k, id, wc) {
@@ -400,6 +471,7 @@ if (gotLock) app.whenReady().then(() => {
   makeBubble();
   applyAutostart(st.bool("autostart")); // keeps the entry valid after updates / moving the app
   bindWithRetry();
+  startKeyListener();
   try { makeTray(); } catch {} // no tray (some Linux desktops, missing icon) must never take the shortcut and pill down
   if (!process.argv.includes("--hidden") || !st.apiKey) showMain();
   for (const ev of ["resume", "unlock-screen"]) powerMonitor.on(ev, () => setTimeout(rebind, 1500));

@@ -18,10 +18,11 @@ function makeRecorder() {
     rec = stream = ctx = null;
   };
 
+  // Same recipe as the Android Recorder (speech-recognition mic path, mono, 32 kHz, 64 kbps): call-style echo/noise filters smear fast words and make Whisper write wrong ones.
   /** Returns at once (like the Android bridge); mic problems show up in stop(). */
   function start(onMax) {
     cancelled = false; chunks = [];
-    ready = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then((s) => {
+    ready = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 32000, echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then((s) => {
       if (cancelled) { s.getTracks().forEach((t) => t.stop()); return false; }
       stream = s;
       ctx = new AudioContext();
@@ -33,7 +34,7 @@ function makeRecorder() {
         an.getByteTimeDomainData(buf);
         lvl = Math.sqrt(buf.reduce((n, v) => n + ((v - 128) / 128) ** 2, 0) / buf.length); // RMS 0..1
       }, 50);
-      rec = new MediaRecorder(s, { mimeType: "audio/webm;codecs=opus" });
+      rec = new MediaRecorder(s, { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 64000 });
       rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       rec.start(250);
       t0 = Date.now();

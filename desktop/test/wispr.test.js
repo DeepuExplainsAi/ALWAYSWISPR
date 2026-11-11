@@ -109,3 +109,23 @@ test("no key handler returns false (that silently blocks typing and Ctrl+V)", ()
     assert.ok(!/onkey(down|up|press)\s*=\s*e\s*=>\s*e\.key\s*===[^;{]*&&/.test(h), `${f}: key handler can return false`);
   }
 });
+
+test("key listener: chords fire once per press, extra modifiers and repeats do not", () => {
+  const Hook = require("../main/hook");
+  const K = { Space: 57, W: 17, Escape: 1 };
+  const fired = [];
+  const m = Hook.matcher(() => ({ hotkey: "Control+Shift+Space", panelKey: "Command+Shift+W" }), K, (n) => fired.push(n));
+  const tap = (...c) => { c.forEach((k) => m.key(k, true)); [...c].reverse().forEach((k) => m.key(k, false)); };
+  tap(29, 42, 57);                       // Ctrl+Shift+Space
+  assert.deepStrictEqual(fired, ["hotkey"]);
+  m.key(29, true); m.key(42, true); m.key(57, true); m.key(57, true); m.key(57, true); // key repeat
+  assert.deepStrictEqual(fired, ["hotkey", "hotkey"]);
+  m.reset();
+  tap(29, 42, 56, 57);                   // + Alt: a different chord
+  tap(57);                               // bare Space
+  assert.strictEqual(fired.length, 2);
+  tap(3675, 42, 17);                     // Cmd+Shift+W
+  assert.strictEqual(fired[2], "panelKey");
+  assert.deepStrictEqual(Hook.parse("Control+Shift+Space", { Space: 57 }), { mods: ["ctrl", "shift"], code: 57 });
+  assert.strictEqual(Hook.parse("Control+Shift+Bogus", { Space: 57 }), null);
+});

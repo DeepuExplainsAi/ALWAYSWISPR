@@ -1,5 +1,5 @@
 // Update check for the PC app. Desktop installers sit on the normal v* release next to the APK, so a release counts only if it has a desktop installer.
-// It tells the user and opens the release page; it does not replace files by itself.
+// check() finds the release; main.js downloads and installs it inside the app (electron-updater) where the OS allows it.
 // Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. SPDX-License-Identifier: Apache-2.0
 const REPO = "DeepuExplainsAi/ALWAYSWISPR";
 const INSTALLER = /(win-x64\.exe|\.dmg|\.AppImage|\.deb)$/i;
@@ -20,7 +20,7 @@ async function check(current, fetchFn = fetch) {
   if (!res.ok) throw new Error(res.status === 403 ? "GitHub is limiting requests. Try again later." : `GitHub answered ${res.status}`);
   const best = (await res.json())
     .filter((r) => !r.draft && (r.assets || []).some((a) => INSTALLER.test(a.name)))
-    .map((r) => ({ version: r.tag_name.replace(/^\D+/, ""), notes: r.body || "", page: r.html_url, size: 0 }))
+    .map((r) => ({ version: r.tag_name.replace(/^\D+/, ""), notes: r.body || "", page: r.html_url, tag: r.tag_name, size: 0 }))
     .sort((a, b) => (newer(a.version, b.version) ? -1 : 1))[0];
   return best && newer(best.version, current) ? best : null;
 }

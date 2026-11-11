@@ -37,9 +37,9 @@ function patchIndex(h) {
   p(/<div class="row"><label for="holdSel">[\s\S]*?<\/select><\/div>/, SHORTCUT_ROWS, "hold row");
   p('$("holdSel").value = S.hold || "panel"; ', "", "holdSel value");
   p('  $("holdSel").onchange = e => set("hold", e.target.value);\n', "", "holdSel change");
-  p("Auto: downloads on Wi-Fi and verifies it, then one tap installs. Your key and settings stay.", "Shows a card when a new version is out. Install it over the old one; your key and settings stay.", "updates text");
+  p("Auto: downloads on Wi-Fi and verifies it, then one tap installs. Your key and settings stay.", "A card appears here when a new version is out. It downloads inside Wispr; tap Install and Wispr restarts into the new version. Your key and settings stay.", "updates text");
   p('<option value="auto">Auto download</option><option value="notify">Just notify me</option>', '<option value="auto">Check automatically</option>', "update options");
-  p(/<p class="legal">Every update is checked before install:[^<]*<\/p>/, '<p class="legal">Updates come from this project\'s GitHub Releases only.</p>', "update legal");
+  p(/<p class="legal">Every update is checked before install:[^<]*<\/p>/, '<p class="legal">Updates download inside Wispr from this project\'s GitHub Releases and are checked against their checksum before install.</p>', "update legal");
   p("runs inside its Android app.", "runs inside its desktop app.", "no bridge");
   p(/const PERMS = \[[\s\S]*?\n  \];/, PERMS, "PERMS");
   p("</style>", fs.readFileSync(path.join(UI, "desktop.css"), "utf8") + "</style>", "desktop css");
