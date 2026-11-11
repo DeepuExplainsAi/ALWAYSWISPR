@@ -266,22 +266,72 @@ async function understand(wc, id) {
 }
 
 // ---------- updates ----------
+// Windows installer and Linux AppImage update inside the app (download, verify, restart into the new version).
+// macOS builds are not code-signed (the OS refuses silent updates) and .deb / portable have no updater: those open the release page.
+const canSelfUpdate = () => app.isPackaged && ((process.platform === "win32" && !process.env.PORTABLE_EXECUTABLE_FILE) || (process.platform === "linux" && !!process.env.APPIMAGE));
+let updater;
+
 function pushUpdate() {
   const o = { configured: true, current: VERSION, mode: st.str("updates"), skipped: st.str("skippedUpdate"), page: upd.page || `https://github.com/${Updater.REPO}/releases`, ...upd };
   mainWin?.webContents.send("js", `window.WisprUpdate&&WisprUpdate(${JSON.stringify(JSON.stringify(o))})`);
   return JSON.stringify(o);
 }
 
+const setUpd = (patch) => { upd = { ...upd, ...patch }; pushUpdate(); };
+
+/** Lazy: electron-updater is only loaded when an update is really going to be installed. */
+function selfUpdater() {
+  if (updater) return updater;
+  updater = require("electron-updater").autoUpdater;
+  updater.autoDownload = false;
+  updater.autoInstallOnAppQuit = true; // downloaded but not yet installed: the next normal quit installs it
+  updater.on("download-progress", (p) => setUpd({ state: "downloading", progress: Math.round(p.percent || 0) }));
+  updater.on("update-downloaded", () => setUpd({ state: "ready", progress: 100 }));
+  return updater;
+}
+
+/** Download the found release (checksum + size are verified by electron-updater against latest.yml). */
+async function downloadUpdate() {
+  if (!upd.tag || ["downloading", "ready"].includes(upd.state)) return;
+  setUpd({ state: "downloading", progress: 0 });
+  try {
+    const u = selfUpdater();
+    // Pin to the release the check found, so a newer APK-only release can never hide the installer.
+    u.setFeedURL({ provider: "generic", url: `https://github.com/${Updater.REPO}/releases/download/${upd.tag}/` });
+    const r = await u.checkForUpdates();
+    if (!r?.updateInfo || !Updater.newer(r.updateInfo.version, VERSION)) return setUpd({ state: "error", msg: "This release has no installer for your system yet. Try again in a few minutes." });
+    await u.downloadUpdate();
+  } catch (e) {
+    setUpd({ state: "error", msg: `Couldn't download the update (${e.message || "network"}). Try again.` });
+  }
+}
+
+function installUpdate() {
+  setUpd({ state: "installing" });
+  quitting = true; // let the hidden windows close
+  setTimeout(() => { try { selfUpdater().quitAndInstall(true, true); } catch (e) { quitting = false; setUpd({ state: "error", msg: "Couldn't start the installer." }); } }, 400);
+}
+
+function startUpdate() {
+  if (!canSelfUpdate()) return void shell.openExternal(upd.page || `https://github.com/${Updater.REPO}/releases`);
+  if (upd.state === "ready") installUpdate();
+  else downloadUpdate();
+}
+
 async function checkUpdate(manual) {
   if (!manual && st.str("updates") === "off") return;
-  upd = { ...upd, state: "checking" }; pushUpdate();
+  if (["downloading", "ready", "installing"].includes(upd.state)) return pushUpdate();
+  setUpd({ state: "checking" });
   try {
     const r = await Updater.check(VERSION);
-    upd = r ? { state: "available", latest: r.version, notes: r.notes, page: r.page, size: r.size, lastCheck: Date.now() } : { state: "uptodate", lastCheck: Date.now() };
+    if (!r) return setUpd({ state: "uptodate", lastCheck: Date.now() });
+    upd = { state: "available", latest: r.version, tag: r.tag, notes: r.notes, page: r.page, size: r.size, lastCheck: Date.now() };
+    pushUpdate();
+    if (!manual && !mainWin?.isVisible()) new Notification({ title: "Wispr", body: `Version ${r.version} is ready. Open Wispr to update.` }).show();
+    if (!manual && st.str("updates") === "auto" && canSelfUpdate()) downloadUpdate(); // ready in the background, one tap installs
   } catch (e) {
-    upd = { state: "error", msg: e.message || "Couldn't check", lastCheck: Date.now() };
+    setUpd({ state: "error", msg: e.message || "Couldn't check", lastCheck: Date.now() });
   }
-  pushUpdate();
 }
 
 // ---------- bridge (same method names as the Android WebView bridges) ----------
@@ -315,8 +365,8 @@ const bridge = {
     removeKey: () => { st.apiKey = ""; },
     updateState: pushUpdate,
     checkUpdate: () => { checkUpdate(true); },
-    startUpdate: () => { shell.openExternal(upd.page || `https://github.com/${Updater.REPO}/releases`); },
-    cancelUpdate: () => {},
+    startUpdate,
+    cancelUpdate: () => { try { updater?.cancellationToken?.cancel(); } catch {} setUpd({ state: "available", progress: 0 }); },
     skipUpdate: (v) => { st.put("skippedUpdate", String(v).slice(0, 40)); },
     openReleasePage: () => { shell.openExternal(upd.page || `https://github.com/${Updater.REPO}/releases`); },
     async verifyKey(k, id, wc) {
