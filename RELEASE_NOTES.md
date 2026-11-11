@@ -1,11 +1,7 @@
-## Wispr v4.1.8
+## Wispr v4.1.9
 
 **Fixed**
-- **Hindi turned into English** (Polish mode, "I speak: English"): English is no longer forced on the speech model, so what you say is what gets written. Phone and PC.
-- **Shortcut and orb on PC**: the typed text now goes into the app you were using even if the orb click moved the focus; a second paste method is used if the first fails.
-- **Models stay in sync with Groq**: the app asks Groq which models are live, hides or replaces removed ones and shows new ones by itself. Phone and PC.
+- **Mixed languages are written as you speak them.** Speak Hindi and switch to English in the middle: the Hindi part is written as Hindi, the English part as English (in Hinglish mode both in Roman letters, in Hindi mode Hindi in Devanagari and English in English letters). Before, the speech model was forced to the language you picked, so the other language got twisted into it. Phone and PC.
+- **Dark mode: the language list was unreadable** (white text on a white list). Every drop-down now uses the dark colours.
 
-**New**
-- **PC: update bar at the top of the app** with *Update now* / *Later*. The update downloads inside Wispr, is checked against its checksum, and Wispr restarts into the new version. Windows, Linux (AppImage) and macOS.
-- **PC: move the orb anywhere** (drag it up, down or sideways); it remembers the place. Tray → *Reset orb position* puts it back.
-- Latest toolchain: Android SDK 37, AGP 9.5.1, Gradle 9.9.1, Kotlin 2.4.21, Electron 45.3. Android 8.0+ still supported.
+(v4.1.8: models follow Groq, update bar + in-app update on PC, draggable orb, latest toolchain.)

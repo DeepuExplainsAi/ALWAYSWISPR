@@ -130,9 +130,10 @@ object Groq {
             .addFormDataPart("model", model)
             .addFormDataPart("response_format", "json")
             .addFormDataPart("temperature", "0")
-        // Whisper has no Odia code; "hinglish" is sent as Hindi (best recognition) and romanised afterwards.
-        // English is not forced either: language=en makes Whisper translate Hindi speech into English.
-        val wl = when (lang) { "auto", "or", "en" -> null; "hinglish" -> "hi"; else -> lang }
+        // Hindi, Hinglish, English and Auto are NOT forced to one language: a forced language makes Whisper write the other
+        // language's words in it (English turned into Devanagari, Hindi turned into English). Whisper hears each phrase as spoken;
+        // the mixed-language prompt keeps it that way, and the polish step only fixes the script. Other languages keep their code.
+        val wl = when (lang) { "auto", "or", "en", "hi", "hinglish" -> null; else -> lang }
         if (wl != null) b.addFormDataPart("language", wl)
         if (!prompt.isNullOrBlank()) b.addFormDataPart("prompt", prompt)
         val req = Request.Builder().url(BASE + "audio/transcriptions")

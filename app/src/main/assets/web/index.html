@@ -79,6 +79,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding-blo
 .pill span{color:var(--ink-3);font-weight:500}
 .pill select{appearance:none;-webkit-appearance:none;border:0;background:transparent;font-weight:600;padding:0;cursor:pointer;position:static}
 .pill select:focus-visible{outline:none}
+/* the open list is drawn by the system with its own background: give it the theme colours (dark mode showed white text on white) */
+select option,select optgroup{background:var(--surface);color:var(--ink)}
 .pill:focus-within{outline:2.5px solid var(--accent);outline-offset:2px}
 .pill::after{content:"";position:absolute;right:14px;top:50%;width:6px;height:6px;border-right:1.5px solid var(--ink-2);border-bottom:1.5px solid var(--ink-2);transform:translateY(-70%) rotate(45deg);pointer-events:none}
 .arrow{color:var(--ink-3);font-weight:600}
