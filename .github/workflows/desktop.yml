@@ -42,6 +42,8 @@ jobs:
             desktop/dist/*.zip
             desktop/dist/*.AppImage
             desktop/dist/*.deb
+            desktop/dist/latest*.yml
+            desktop/dist/*.blockmap
           if-no-files-found: error
 
   release:
