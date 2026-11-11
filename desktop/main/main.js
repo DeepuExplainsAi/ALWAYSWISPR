@@ -14,12 +14,16 @@ const { GroqError } = Groq;
 const Models = require("./models");
 const Updater = require("./updater");
 const { paste } = require("./paste");
+const Hook = require("./hook");
 
 const ROOT = path.join(__dirname, "..");
 const KEY_RE = /^gsk_[A-Za-z0-9_-]{20,200}$/;
 const NOTICE = "Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta. Open source under the Apache License, Version 2.0: you may use, modify and share it under that licence's terms. Provided \"as is\", without warranty of any kind.";
 const MAC = process.platform === "darwin";
 const VERSION = require("../package.json").version;
+
+// Wayland has no global shortcuts unless they go through the desktop portal.
+if (process.platform === "linux") app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
@@ -96,6 +100,8 @@ function bubble(state, msg) {
   liveBubble().setBounds({ x: Math.round(d.x + (d.width - w) / 2), y: Math.round(d.y + d.height - 44 - 36), width: w, height: 44 });
   toBubble("bubble", state, msg);
   bubbleWin.showInactive();
+  bubbleWin.setAlwaysOnTop(true, "screen-saver"); // some OS / full-screen apps drop the flag when the window is re-shown
+  bubbleWin.moveTop();
 }
 
 // ---------- dictation by shortcut ----------
@@ -103,8 +109,8 @@ function setPhase(p) {
   phase = p;
   // while recording: Esc cancels, Enter stops and types (the pill never takes focus, so these are global)
   if (p === "rec") {
-    globalShortcut.register("Escape", () => cancelDictation());
-    globalShortcut.register("Return", () => toggleDictation());
+    globalShortcut.register("Escape", act.cancel);
+    globalShortcut.register("Return", act.stop);
   } else {
     globalShortcut.unregister("Escape");
     globalShortcut.unregister("Return");
@@ -146,6 +152,10 @@ async function finishDictation(buf, mime) {
 }
 
 // ---------- shortcuts ----------
+// Every shortcut can arrive twice (OS shortcut + system-wide key listener): an action runs once per 350 ms.
+const once = (fn) => { let t = 0; return () => { const n = Date.now(); if (n - t > 350) { t = n; fn(); } }; };
+const act = { hotkey: once(() => toggleDictation()), panelKey: once(() => togglePanel()), cancel: once(() => cancelDictation()), stop: once(() => phase === "rec" && toggleDictation()) };
+
 function register(acc, fn) {
   try { return globalShortcut.register(acc, fn); } catch { return false; }
 }
@@ -153,8 +163,8 @@ function register(acc, fn) {
 function bindKeys() {
   globalShortcut.unregister(st.str("hotkey"));
   globalShortcut.unregister(st.str("panelKey"));
-  const a = register(st.str("hotkey"), toggleDictation);
-  const b = register(st.str("panelKey"), togglePanel);
+  const a = register(st.str("hotkey"), act.hotkey);
+  const b = register(st.str("panelKey"), act.panelKey);
   return a && b;
 }
 
@@ -166,9 +176,20 @@ function bindWithRetry(n = 0) {
   showMain();
 }
 
+/** Backup path for the shortcuts, active in every app. Needs Accessibility on macOS, X11 on Linux (not Wayland). */
+function startKeyListener() {
+  const wayland = process.platform === "linux" && !process.env.DISPLAY;
+  if (wayland || (MAC && !systemPreferences.isTrustedAccessibilityClient(false))) return;
+  Hook.start(
+    () => ({ hotkey: st.str("hotkey"), panelKey: st.str("panelKey"), ...(phase === "rec" ? { cancel: "Escape" } : {}) }),
+    (name) => act[name](),
+  );
+}
+
 function rebind() {
   globalShortcut.unregisterAll();
   bindWithRetry();
+  startKeyListener();
   setPhase(phase);
 }
 
@@ -178,8 +199,8 @@ function setShortcut(key, acc) {
   if (acc === old) return true;
   if (acc === st.str(key === "hotkey" ? "panelKey" : "hotkey")) return false;
   globalShortcut.unregister(old);
-  if (!register(acc, key === "hotkey" ? toggleDictation : togglePanel)) {
-    register(old, key === "hotkey" ? toggleDictation : togglePanel);
+  if (!register(acc, act[key])) {
+    register(old, act[key]);
     return false;
   }
   st.put(key, acc);
@@ -400,6 +421,7 @@ if (gotLock) app.whenReady().then(() => {
   makeBubble();
   applyAutostart(st.bool("autostart")); // keeps the entry valid after updates / moving the app
   bindWithRetry();
+  startKeyListener();
   try { makeTray(); } catch {} // no tray (some Linux desktops, missing icon) must never take the shortcut and pill down
   if (!process.argv.includes("--hidden") || !st.apiKey) showMain();
   for (const ev of ["resume", "unlock-screen"]) powerMonitor.on(ev, () => setTimeout(rebind, 1500));
