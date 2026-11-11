@@ -91,8 +91,10 @@ async function transcribe(key, audio, model, lang, prompt, mime = "audio/webm") 
   f.append("response_format", "json");
   f.append("temperature", "0");
   // Whisper has no Odia code; "hinglish" is sent as Hindi (best recognition) and romanised afterwards.
-  // English is NOT forced: with language=en Whisper translates Hindi speech into English instead of writing what was said.
-  const wl = lang === "auto" || lang === "or" || lang === "en" ? null : lang === "hinglish" ? "hi" : lang;
+  // Hindi, Hinglish, English and Auto are NOT forced to one language: a forced language makes Whisper write the other
+  // language's words in it (English turned into Devanagari, Hindi turned into English). Whisper hears each phrase as spoken;
+  // the mixed-language prompt keeps it that way, and the polish step only fixes the script. Other languages keep their code.
+  const wl = ["auto", "or", "en", "hi", "hinglish"].includes(lang) ? null : lang;
   if (wl) f.append("language", wl);
   if (prompt && prompt.trim()) f.append("prompt", prompt);
   const body = await exec("audio/transcriptions", { method: "POST", headers: auth(key), body: f });

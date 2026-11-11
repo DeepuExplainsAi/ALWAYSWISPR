@@ -130,15 +130,19 @@ test("key listener: chords fire once per press, extra modifiers and repeats do n
   assert.strictEqual(Hook.parse("Control+Shift+Bogus", { Space: 57 }), null);
 });
 
-test("English is never forced on Whisper (it would translate Hindi speech into English)", async () => {
+test("Hindi, Hinglish and English are never forced on Whisper (mixed speech must be written as spoken)", async () => {
   let form;
   const orig = globalThis.fetch;
   globalThis.fetch = async (_u, o) => { form = o.body; return { ok: true, status: 200, text: async () => JSON.stringify({ text: "ok" }) }; };
   try {
     await Groq.transcribe("gsk_" + "a".repeat(30), Buffer.from("x"), "whisper-large-v3", "en", "", "audio/webm");
     assert.strictEqual(form.get("language"), null);
-    await Groq.transcribe("gsk_" + "a".repeat(30), Buffer.from("x"), "whisper-large-v3", "hinglish", "", "audio/webm");
-    assert.strictEqual(form.get("language"), "hi");
+    for (const l of ["hinglish", "hi", "auto"]) {
+      await Groq.transcribe("gsk_" + "a".repeat(30), Buffer.from("x"), "whisper-large-v3", l, "", "audio/webm");
+      assert.strictEqual(form.get("language"), null, l);
+    }
+    await Groq.transcribe("gsk_" + "a".repeat(30), Buffer.from("x"), "whisper-large-v3", "ta", "", "audio/webm");
+    assert.strictEqual(form.get("language"), "ta");
   } finally { globalThis.fetch = orig; }
 });
 
