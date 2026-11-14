@@ -11,9 +11,9 @@ button:hover{filter:brightness(1.2)}button:active{transform:scale(.92)}
 #ok{background:linear-gradient(#ff9a3d,#e85d04)}
 canvas{flex:1;min-width:0;height:30px}
 #msg{flex:1;min-width:0;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 8px}
-[data-s=work] #msg::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border:2px solid #ff8a1f;border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:-1px}
+[data-s=work] #msg::before,[data-s=start] #msg::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border:2px solid #ff8a1f;border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:-1px}
 [data-s=err] #msg{color:#ffb4a8}
-[data-s=rec] #msg,[data-s=work] canvas,[data-s=work] button,[data-s=err] canvas,[data-s=err] button{display:none}
+[data-s=rec] #msg,[data-s=start] canvas,[data-s=start] #ok,[data-s=work] canvas,[data-s=work] button,[data-s=err] canvas,[data-s=err] button{display:none}
 #pill.out{animation:out .17s ease-in both}
 @keyframes in{from{opacity:0;transform:translateY(10px) scale(.94)}}
 @keyframes out{to{opacity:0;transform:translateY(8px) scale(.96)}}
@@ -38,6 +38,7 @@ pill.addEventListener("pointerdown", (e) => {
   if (e.target.closest("button")) return;
   pill.setPointerCapture(e.pointerId); B.drag("start", e.screenX, e.screenY);
 });
+for (const ev of ["pointerup", "pointercancel"]) pill.addEventListener(ev, () => B.drag("end"));
 pill.addEventListener("pointermove", (e) => { if (pill.hasPointerCapture(e.pointerId)) B.drag("move", e.screenX, e.screenY); });
 
 const BARS = 15, bars = new Array(BARS).fill(0);

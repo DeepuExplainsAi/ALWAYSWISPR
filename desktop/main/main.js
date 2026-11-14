@@ -120,6 +120,7 @@ function bubble(state, msg) {
     hideTimer = setTimeout(() => bubbleWin && !bubbleWin.isDestroyed() && bubbleWin.hide(), 180); // after the fade-out
     return;
   }
+  dragFrom = null; // layout changes: end any drag in progress
   const w = state === "rec" ? 200 : Math.min(380, Math.max(150, 90 + String(msg || "").length * 7));
   const home = pillHome();
   programmatic = Date.now();
@@ -148,7 +149,7 @@ function toggleDictation() {
     if (!st.apiKey) { showMain(); return; }
     setPhase("rec");
     toBubble("rec", "start");
-    bubble("work", "Starting mic…"); // switches to the recording pill once the mic is really open ("rec:ready"), so no first words are lost
+    bubble("start", "Starting mic…"); // switches to the recording pill once the mic is really open ("rec:ready"), so no first words are lost
   } else if (phase === "rec") {
     setPhase("work");
     toBubble("rec", "stop");
@@ -500,7 +501,8 @@ ipcMain.on("rec:ready", () => { if (phase === "rec") bubble("rec"); });
 ipcMain.on("bubble:drag", (_e, ph, x, y) => {
   if (!bubbleWin || bubbleWin.isDestroyed()) return;
   if (ph === "start") dragFrom = { x, y, b: bubbleWin.getBounds() };
-  else if (dragFrom) bubbleWin.setBounds({ ...dragFrom.b, x: Math.round(dragFrom.b.x + x - dragFrom.x), y: Math.round(dragFrom.b.y + y - dragFrom.y) });
+  else if (ph === "end") dragFrom = null;
+  else if (dragFrom) bubbleWin.setPosition(Math.round(dragFrom.b.x + x - dragFrom.x), Math.round(dragFrom.b.y + y - dragFrom.y));
 });
 ipcMain.on("rec:fail", (_e, msg) => endDictation(msg, true));
 

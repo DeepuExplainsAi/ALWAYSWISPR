@@ -20,7 +20,7 @@ function makeRecorder() {
 
   // Same recipe as the Android Recorder (speech-recognition mic path, mono, 32 kHz, 64 kbps): call-style echo/noise filters smear fast words and make Whisper write wrong ones.
   /** Returns at once (like the Android bridge); mic problems show up in stop(). */
-  function start(onMax, onReady) {
+  function start(onMax, onReady, onFail) {
     cancelled = false; chunks = [];
     ready = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 32000, echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then((s) => {
       if (cancelled) { s.getTracks().forEach((t) => t.stop()); return false; }
@@ -41,7 +41,7 @@ function makeRecorder() {
       maxTimer = setTimeout(() => onMax?.(), MAX_MS);
       onReady?.();
       return true;
-    }).catch(() => false);
+    }).catch(() => { cleanup(); if (!cancelled) onFail?.(); return false; });
   }
 
   /** { buf, mime } | { err } */
@@ -66,7 +66,7 @@ const q = JSON.stringify;
 if (kind === "bubble") {
   const rec = makeRecorder();
   ipcRenderer.on("rec", async (_e, cmd) => {
-    if (cmd === "start") rec.start(() => ipcRenderer.send("bubble:click", "stop"), () => ipcRenderer.send("rec:ready"));
+    if (cmd === "start") rec.start(() => ipcRenderer.send("bubble:click", "stop"), () => ipcRenderer.send("rec:ready"), () => ipcRenderer.send("rec:fail", "Couldn't use the microphone. Allow it for Wispr and try again."));
     else if (cmd === "cancel") rec.cancel();
     else if (cmd === "stop") {
       const r = await rec.stop();

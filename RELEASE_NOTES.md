@@ -1,3 +1,10 @@
+## Wispr v4.1.11
+
+**Fixed**
+- PC: if the microphone cannot start, the error shows at once (no stuck "Starting mic…"), and ✕ works while it starts.
+- PC: dragging the orb no longer jumps or resizes it.
+- Android: clearer message when a screen has no readable text.
+
 ## Wispr v4.1.10
 
 **Fixed**
