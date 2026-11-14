@@ -186,7 +186,7 @@ class Panel(private val svc: BubbleService) {
             }
         }
         if (!ScreenReader.canScreenshot()) {
-            cb(id, false, "Hardly any readable text here. Scanning pictures (OCR) needs Android 11 or newer.")
+            cb(id, false, "Hardly any readable text on this screen. Picture scan (OCR) is off so Google Pay and banking apps keep working.")
             return
         }
         status(id, "Scanning the screen…")
