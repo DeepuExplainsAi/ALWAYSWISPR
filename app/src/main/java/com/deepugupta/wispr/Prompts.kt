@@ -25,12 +25,15 @@ object Prompts {
         " RULE 4: write numbers, money, dates and times the way people type them (70,000 rupees, 5 lakh, 8 PM, 10 years)." +
         " RULE 5: remove fillers (umm, uh, like, you know, haan toh, matlab-matlab), stutters and repeated words. Fix grammar, punctuation and capitalization."
 
+    /** Whisper often writes English speech in Devanagari when the speaker mixes languages: put it back. */
+    private const val KEEP_ENGLISH = " ENGLISH: whatever the speaker said in English must end up as real English words in English letters, even whole sentences that the input wrote in Devanagari (\"आई विल सेंड इट टुनाइट\" -> \"I will send it tonight\"). Never turn English speech into Hindi, never turn Hindi speech into English."
+
     /** Auto-detect: follow every language switch, never collapse the whole text into one language. */
-    private const val LANG_FOLLOW = " LANGUAGE: write each sentence in the language the speaker actually used for it. If they switch between English and Hindi/Hinglish (or any other languages), follow every switch exactly. Never translate any part, never turn the whole text into one language."
+    private const val LANG_FOLLOW = " LANGUAGE: write each sentence in the language the speaker actually used for it. If they switch between English and Hindi/Hinglish (or any other languages), follow every switch exactly. Never translate any part, never turn the whole text into one language." + KEEP_ENGLISH
 
     /** Hinglish mode, Polish: understand + organise + Roman Hinglish in ONE call (fast). */
     const val POLISH_HINGLISH = "You turn dictated speech from an Indian speaker into clean, well-organised Hinglish text." + FORMAT +
-        " Keep the speaker's meaning, tone and Hindi-English mix exactly; sentences spoken in English stay in English." + FAST + HINGLISH_RULES +
+        " Keep the speaker's meaning, tone and Hindi-English mix exactly; sentences spoken in English stay in English." + KEEP_ENGLISH + FAST + HINGLISH_RULES +
         " Examples: 'कल मीटिंग है ना, मैं प्रेजेंटेशन भेज दूंगा' -> 'Kal meeting hai na, main presentation bhej dunga.' | 'bhai tum kahan ho' -> 'Bhai, tum kahan ho?' | 'Tanisha ko bolo kal paanch baje aaye nahi nahi chhe baje' -> 'Tanisha ko bolo kal 6 baje aaye.' | 'toh use teen sawaal poochh lena woh kitni jaldi relocate kar sakta hai uski salary expectations kya hai aur woh six day work ke saath comfortable hai na kal subah tak batana' -> 'Toh use teen sawaal poochh lena:\n1. Woh kitni jaldi relocate kar sakta hai?\n2. Uski salary expectations kya hai?\n3. Woh 6-day work ke saath comfortable hai?\n\nKal subah tak batana.'" + GUARD
 
     /** Auto-detect, Polish: same smart formatting, keeps English as English and Hinglish as Hinglish. */
@@ -44,7 +47,7 @@ object Prompts {
 
     /** Hindi (Devanagari) mode, Polish. */
     const val POLISH_NATIVE = "You turn dictated speech into clean, well-organised text." + FORMAT +
-        " Keep the speaker's meaning, tone and language exactly. If they mix Hindi and English, keep the mix: Hindi words in Devanagari, English words in English letters. Never translate." + FAST + GUARD
+        " Keep the speaker's meaning, tone and language exactly. If they mix Hindi and English, keep the mix: Hindi words in Devanagari, English words in English letters. Never translate." + KEEP_ENGLISH + FAST + GUARD
 
     /** Generic Polish for English and every other language (keeps its own script). */
     const val POLISH = "You turn dictated speech into clean, well-organised text." + FORMAT +

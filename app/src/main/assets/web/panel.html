@@ -350,7 +350,7 @@ button{background:none;border:0;cursor:pointer}
   /* ---------- screen ---------- */
   let scrBusy = false, scrText = "";
   chips($("explainChips"), TARGETS, S.explainIn || "hinglish", v => set("explainIn", v));
-  if (!N.canScan()) { $("scrOcr").disabled = true; $("scrNote").textContent = "Scan picture (OCR) needs Android 11+. Understand still reads on-screen text on your phone."; }
+  if (!N.canScan()) { $("scrOcr").disabled = true; $("scrNote").textContent = "Scan picture (OCR) is off so Google Pay and banking apps keep working. Understand still reads on-screen text."; }
   $("scrAuto").onclick = () => understand("auto");
   $("scrOcr").onclick = () => understand("ocr");
   async function understand(mode){
