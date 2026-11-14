@@ -58,7 +58,8 @@ object ScreenReader {
         }
     }
 
-    fun canScreenshot(): Boolean = Build.VERSION.SDK_INT >= 30
+    /** Off since v4.1.10: the screenshot permission made Google Pay and banking apps block payments while Wispr is enabled. */
+    fun canScreenshot(): Boolean = false
 
     /** JPEG (base64) of the screen, or null. [cb] runs on the main thread. */
     fun screenshot(svc: AccessibilityService, cb: (String?) -> Unit) {

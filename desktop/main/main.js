@@ -90,7 +90,7 @@ function toBubble(...args) {
 }
 
 // The orb can be dragged anywhere (up, down, sideways); the place is remembered. The tray menu puts it back.
-let programmatic = 0, moveTimer;
+let programmatic = 0, moveTimer, dragFrom = null;
 const PILL_H = 44;
 
 function pillHome() {
@@ -148,7 +148,7 @@ function toggleDictation() {
     if (!st.apiKey) { showMain(); return; }
     setPhase("rec");
     toBubble("rec", "start");
-    bubble("rec");
+    bubble("work", "Starting mic…"); // switches to the recording pill once the mic is really open ("rec:ready"), so no first words are lost
   } else if (phase === "rec") {
     setPhase("work");
     toBubble("rec", "stop");
@@ -496,6 +496,12 @@ ipcMain.on("audio", async (e, channel, id, buf, mime) => {
 });
 
 ipcMain.on("bubble:click", (_e, what) => (what === "stop" ? toggleDictation() : cancelDictation()));
+ipcMain.on("rec:ready", () => { if (phase === "rec") bubble("rec"); });
+ipcMain.on("bubble:drag", (_e, ph, x, y) => {
+  if (!bubbleWin || bubbleWin.isDestroyed()) return;
+  if (ph === "start") dragFrom = { x, y, b: bubbleWin.getBounds() };
+  else if (dragFrom) bubbleWin.setBounds({ ...dragFrom.b, x: Math.round(dragFrom.b.x + x - dragFrom.x), y: Math.round(dragFrom.b.y + y - dragFrom.y) });
+});
 ipcMain.on("rec:fail", (_e, msg) => endDictation(msg, true));
 
 // ---------- start ----------

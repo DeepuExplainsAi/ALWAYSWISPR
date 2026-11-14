@@ -20,7 +20,7 @@ function makeRecorder() {
 
   // Same recipe as the Android Recorder (speech-recognition mic path, mono, 32 kHz, 64 kbps): call-style echo/noise filters smear fast words and make Whisper write wrong ones.
   /** Returns at once (like the Android bridge); mic problems show up in stop(). */
-  function start(onMax) {
+  function start(onMax, onReady) {
     cancelled = false; chunks = [];
     ready = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 32000, echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then((s) => {
       if (cancelled) { s.getTracks().forEach((t) => t.stop()); return false; }
@@ -39,6 +39,7 @@ function makeRecorder() {
       rec.start(250);
       t0 = Date.now();
       maxTimer = setTimeout(() => onMax?.(), MAX_MS);
+      onReady?.();
       return true;
     }).catch(() => false);
   }
@@ -65,7 +66,7 @@ const q = JSON.stringify;
 if (kind === "bubble") {
   const rec = makeRecorder();
   ipcRenderer.on("rec", async (_e, cmd) => {
-    if (cmd === "start") rec.start(() => ipcRenderer.send("bubble:click", "stop"));
+    if (cmd === "start") rec.start(() => ipcRenderer.send("bubble:click", "stop"), () => ipcRenderer.send("rec:ready"));
     else if (cmd === "cancel") rec.cancel();
     else if (cmd === "stop") {
       const r = await rec.stop();
@@ -76,6 +77,7 @@ if (kind === "bubble") {
   contextBridge.exposeInMainWorld("WisprBubble", {
     level: () => rec.level(),
     click: (name) => ipcRenderer.send("bubble:click", name),
+    drag: (phase, x, y) => ipcRenderer.send("bubble:drag", phase, x, y),
     on: (cb) => ipcRenderer.on("bubble", (_e, state, msg) => cb(state, msg)),
   });
 } else {
