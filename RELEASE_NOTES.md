@@ -1,3 +1,9 @@
+## Wispr v4.1.12
+
+**Fixed**
+- Android: the accessibility service is now declared as an accessibility tool (`isAccessibilityTool`), the flag Android and payment apps use to tell assistive services from risky ones. Google Pay should no longer show "Payments blocked" because of Wispr. If it still does: turn Wispr's accessibility off, restart the phone once to clear the block.
+- PC: pressing the shortcut no longer flickers the pill. It keeps one size from "Starting mic…" to recording and is not resized or re-shown when it is already visible.
+
 ## Wispr v4.1.11
 
 **Fixed**
