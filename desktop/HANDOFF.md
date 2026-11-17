@@ -43,3 +43,8 @@ APK and PC installers live on the same release `vX.Y.Z` (the "latest" one). The 
 
 ## Conventions
 Short, self-explaining code; reuse Android logic 1:1 (same prompts, same fallbacks, same retry delays); keep the Apache-2.0 header line "Wispr by Deepu Gupta. Copyright 2026 Deepu Gupta."
+
+## v4.1.12
+- Android: `accessibility_config.xml` has `isAccessibilityTool="true"` (no screenshot/click/button flags; payment apps must not block). A block already set needs: Wispr accessibility off + phone restart.
+- PC pill: "start" and "rec" share one width (200); `bubble()` only calls `setBounds` when bounds changed and `showInactive` when hidden, so no flicker on shortcut.
+- Release: merge, then push tags `v4.1.12` (APK) and `desktop-v4.1.12` (installers upload to the same release).
