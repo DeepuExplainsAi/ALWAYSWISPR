@@ -121,12 +121,14 @@ function bubble(state, msg) {
     return;
   }
   dragFrom = null; // layout changes: end any drag in progress
-  const w = state === "rec" ? 200 : Math.min(380, Math.max(150, 90 + String(msg || "").length * 7));
+  const w = state === "rec" || state === "start" ? 200 : Math.min(380, Math.max(150, 90 + String(msg || "").length * 7));
   const home = pillHome();
   programmatic = Date.now();
-  liveBubble().setBounds({ x: Math.round(home.cx - w / 2), y: home.y, width: w, height: 44 });
+  const next = { x: Math.round(home.cx - w / 2), y: home.y, width: w, height: 44 };
+  const cur = liveBubble().getBounds();
+  if (cur.x !== next.x || cur.y !== next.y || cur.width !== next.width || cur.height !== next.height) bubbleWin.setBounds(next); // same size: no resize, no flicker
   toBubble("bubble", state, msg);
-  bubbleWin.showInactive();
+  if (!bubbleWin.isVisible()) bubbleWin.showInactive();
   bubbleWin.setAlwaysOnTop(true, "screen-saver"); // some OS / full-screen apps drop the flag when the window is re-shown
   bubbleWin.moveTop();
 }
